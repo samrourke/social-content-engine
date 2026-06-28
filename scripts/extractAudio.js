@@ -7,23 +7,23 @@ const videoFiles = fs
   .readdirSync("input")
   .filter((file) => file.endsWith(".mp4"));
 
-const transcriptFiles = fs
+const audioFiles = fs
   .readdirSync("output/audio")
-  .filter((file) => file.endsWith(".txt"));
+  .filter((file) => file.endsWith(".mp3"));
 
 if (videoFiles.length === 0) {
   console.log("No MP4 files found in /input.");
   process.exit(0);
 }
 
-const transcriptStems = transcriptFiles.map((file) => path.parse(file).name);
+const audioStems = audioFiles.map((file) => path.parse(file).name);
 
-const processFiles = videoFiles.filter((file) => {
+const pendingVideoFiles = videoFiles.filter((file) => {
   const stem = path.parse(file).name;
-  return !transcriptStems.includes(stem);
+  return !audioStems.includes(stem);
 });
 
-if (processFiles.length === 0) {
+if (pendingVideoFiles.length === 0) {
   console.log("No NEW MP4 files found in /input.");
   process.exit(0);
 }
@@ -33,25 +33,37 @@ all at once. Works better for large batches. */
 
 /*function to extract audio from a video  */
 
-function extractAudio(input, output) {
+function extractAudio(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
-    exec(`ffmpeg -i "${input}" "${output}"`, (error) => {
-      if (error) {
-        reject(error);
-        console.error(error);
-        return;
-      }
-      resolve();
-    });
+    exec(
+      `ffmpeg -y -i "${inputPath}" -vn -ar 16000 -ac 1 -b:a 64k "${outputPath}"`,
+      (error, stdout, stderr) => {
+        console.log(stderr);
+
+        if (error) {
+          console.error(error);
+          reject(error);
+          return;
+        }
+
+        resolve();
+      },
+    );
   });
 }
 
 async function processVideos() {
-  const batchSize = processFiles.length;
-  for (const [index, file] of processFiles.entries()) {
+  const batchSize = pendingVideoFiles.length;
+  console.log(
+    `audio extraction started...the number of files to process is ${batchSize}`,
+  );
+  for (const [index, file] of pendingVideoFiles.entries()) {
     const outputName = path.parse(file).name;
     const inputFile = path.join("input", file);
-    const outputFile = path.join("output", `${outputName}.mp3`);
+    const outputFile = path.join("output/audio", `${outputName}.mp3`);
+
+    console.log(inputFile);
+    console.log(outputFile);
 
     await extractAudio(inputFile, outputFile);
 
@@ -62,24 +74,3 @@ async function processVideos() {
 }
 
 await processVideos();
-
-// const newestFile = videoFiles.sort((a, b) => {
-//   const aTime = fs.statSync(`input/${a}`).mtimeMs;
-//   const bTime = fs.statSync(`input/${b}`).mtimeMs;
-
-//   return bTime - aTime;
-// })[0];
-
-// const outputName = newestFile.substring(0, newestFile.length - 4);
-
-// const inputFile = path.join("input", newestFile);
-// const outputFile = path.join("output", `${outputName}.mp3`);
-
-// exec(`ffmpeg -i "${inputFile}" "${outputFile}"`, (error) => {
-//   if (error) {
-//     console.error(error);
-//     return;
-//   }
-
-//   console.log("Audio extracted!");
-// });

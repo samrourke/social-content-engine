@@ -12,7 +12,7 @@ const openai = new OpenAI({
 /*Create array of transcriptions */
 const transcripts = fs
   .readdirSync("output/transcripts")
-  .filter((file) => file.endsWith(".txt"));
+  .filter((file) => file.endsWith(".json"));
 
 /*Create array of existing metadata objects */
 
@@ -48,89 +48,53 @@ if (pendingTranscripts.length === 0) {
 const metadataSchema = {
   type: "object",
   additionalProperties: false,
-
   properties: {
-    title: {
-      type: "string",
-    },
-
-    clipPotential: {
-      type: "number",
-    },
-
-    clipPotentialReason: {
-      type: "string",
-    },
-
-    summary: {
-      type: "string",
-    },
-
-    searchDescription: {
-      type: "string",
-    },
-
-    videoType: {
-      type: "string",
-    },
-
-    tone: {
+    title: { type: "string" },
+    clipPotential: { type: "number" },
+    clipPotentialReason: { type: "string" },
+    summary: { type: "string" },
+    searchDescription: { type: "string" },
+    videoType: { type: "string" },
+    tone: { type: "array", items: { type: "string" } },
+    places: { type: "array", items: { type: "string" } },
+    topics: { type: "array", items: { type: "string" } },
+    keywords: { type: "array", items: { type: "string" } },
+    people: { type: "array", items: { type: "string" } },
+    entities: { type: "array", items: { type: "string" } },
+    contentSignals: { type: "array", items: { type: "string" } },
+    tags: { type: "array", items: { type: "string" } },
+    clips: {
       type: "array",
       items: {
-        type: "string",
-      },
-    },
-
-    places: {
-      type: "array",
-      items: {
-        type: "string",
-      },
-    },
-
-    topics: {
-      type: "array",
-      items: {
-        type: "string",
-      },
-    },
-
-    keywords: {
-      type: "array",
-      items: {
-        type: "string",
-      },
-    },
-
-    people: {
-      type: "array",
-      items: {
-        type: "string",
-      },
-    },
-
-    entities: {
-      type: "array",
-      items: {
-        type: "string",
-      },
-    },
-
-    contentSignals: {
-      type: "array",
-      items: {
-        type: "string",
-      },
-    },
-
-    tags: {
-      type: "array",
-      items: {
-        type: "string",
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          title: { type: "string" },
+          topic: { type: "string" },
+          emotion: { type: "string" },
+          viralScore: { type: "number" },
+          startSnippet: { type: "string" },
+          endSnippet: { type: "string" },
+          hookReason: { type: "string" },
+          takeaway: { type: "string" },
+          estimatedClipLength: { type: "number" },
+          confidence: { type: "number" },
+        },
+        required: [
+          "title",
+          "topic",
+          "viralScore",
+          "hookReason",
+          "takeaway",
+          "emotion",
+          "startSnippet",
+          "endSnippet",
+          "estimatedClipLength",
+          "confidence",
+        ],
       },
     },
   },
-
   required: [
     "title",
     "summary",
@@ -146,6 +110,7 @@ const metadataSchema = {
     "entities",
     "contentSignals",
     "tags",
+    "clips",
   ],
 };
 
@@ -276,6 +241,39 @@ Examples:
 • tags
 5–10 broad searchable tags.
 Avoid simply repeating the keywords.
+
+• clips
+Return every clip that has genuine viral potential, not just the single best moment.
+Each clip MUST correspond to one continuous section of the transcript.
+
+The clip begins where the speaker first says startSnippet.
+
+The clip ends where the speaker later says endSnippet.
+
+IMPORTANT:
+The endSnippet MUST occur AFTER the startSnippet in the transcript.
+Never choose an endSnippet that appears earlier than the startSnippet.
+
+Do not summarize or combine ideas from different parts of the interview.
+
+Both snippets must be copied verbatim from the transcript.
+Each clip should represent a complete, self-contained idea.
+Describe the emotional feeling of the piece, is it funny, sad, heartfelt, inspiring etc. 
+startSnippet should be an exact 4-6 word phrase spoken at the beginning of the clip that is distinctive enough to locate in the transcript. Include the 2-3 words before this point as well to help with timestamp lookups.
+endSnippet should be the final distinctive phrase spoken before the clip naturally ends.
+It must occur after startSnippet and should be the last important phrase within that continuous
+
+startSnippet:
+Return an exact phrase copied verbatim from the transcript that uniquely identifies the beginning of the clip. Choose a phrase that is unlikely to appear elsewhere in the interview. Avoid common phrases such as "I think", "you know", "it's like", etc.
+
+endSnippet:
+Return an exact phrase copied verbatim from the transcript that uniquely identifies the end of the clip.
+Choose a complete, consecutive phrase from the transcript. Do not end the snippet in the middle of a word group or sentence if a more natural phrase is available.
+Snippets should be copied verbatim from the transcript rather than paraphrased.
+viralScore should be an integer from 0–100 representing how likely the clip is to perform well as a short-form video.
+The model should only include clips it genuinely believes are worth editing, rather than trying to force a fixed number of clips.
+Give an estimate in seconds for how long this video clip might last. 
+Estimate your confidence level of this analysis, an integer between 0 - 100
 `,
       },
 
@@ -299,18 +297,23 @@ Avoid simply repeating the keywords.
 
 async function processTranscriptFiles() {
   const batchSize = pendingTranscripts.length;
+  console.log(
+    `Metadata extraction started...the number of files to process is ${batchSize}`,
+  );
 
   for (const [index, file] of pendingTranscripts.entries()) {
     const inputFile = path.join("output/transcripts", file);
+
     const outputName = path.parse(file).name;
     const outputFile = path.join("output/metadata", `${outputName}.json`);
 
     try {
-      const transcript = fs.readFileSync(inputFile, "utf8");
+      const transcript = JSON.parse(fs.readFileSync(inputFile, "utf8"));
 
-      const metadata = await extractMetadata(transcript);
+      const metadata = await extractMetadata(transcript.text);
 
       fs.writeFileSync(outputFile, JSON.stringify(metadata, null, 2));
+
       console.log(
         `[Metadata] (${index + 1}/${batchSize}) ${inputFile} data successfully extracted`,
       );

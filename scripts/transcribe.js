@@ -48,45 +48,30 @@ if (processFiles.length === 0) {
   process.exit(0);
 }
 
-// function transcribeAudio(input, output) {
-//   return new Promise((resolve, reject) => {
-//     try {
-//       const transcript = await openai.audio.transcriptions.create({
-//         file: fs.createReadStream(input),
-//         model: "whisper-1",
-//       });
-//       fs.writeFileSync(`${output}.txt`, transcript.text);
-
-//       const outputFile = path.join("output/transcripts", `${output}.txt`);
-
-//       // console.log(JSON.stringify(transcript, null, 2));
-
-//       resolve();
-
-//     } catch (error) {
-//       reject(error);
-//       console.error(error);
-//       return;
-//     }
-//   });
-// }
-
 async function transcribeAudio(input) {
   const transcript = await openai.audio.transcriptions.create({
     file: fs.createReadStream(input),
     model: "whisper-1",
+    response_format: "verbose_json",
   });
 
-  return transcript.text;
+  console.log(JSON.stringify(transcript, null, 2));
+
+  return transcript;
 }
 
 async function processAudioFiles() {
   const batchSize = processFiles.length;
+  console.log(
+    `transcribing started...the number of files to process is ${batchSize}`,
+  );
   for (const [index, file] of processFiles.entries()) {
-    const outputName = path.parse(file).name;
-    const outputFile = path.join("output/transcripts", `${outputName}.txt`);
-
     const inputFile = path.join("output/audio", file);
+    const outputName = path.parse(file).name;
+    const outputFile = path.join("output/transcripts", `${outputName}.json`);
+    const transcript = await transcribeAudio(inputFile);
+
+    fs.writeFileSync(outputFile, JSON.stringify(transcript, null, 2));
 
     try {
       const transcript = await transcribeAudio(inputFile);
