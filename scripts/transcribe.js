@@ -19,7 +19,7 @@ const audioFiles = fs
 
 const transcripts = fs
   .readdirSync("output/transcripts")
-  .filter((file) => file.endsWith(".txt"));
+  .filter((file) => file.endsWith(".json"));
 
 /*if no audio files - return */
 
@@ -62,24 +62,26 @@ async function transcribeAudio(input) {
 
 async function processAudioFiles() {
   const batchSize = processFiles.length;
+
   console.log(
     `transcribing started...the number of files to process is ${batchSize}`,
   );
+
   for (const [index, file] of processFiles.entries()) {
     const inputFile = path.join("output/audio", file);
     const outputName = path.parse(file).name;
     const outputFile = path.join("output/transcripts", `${outputName}.json`);
-    const transcript = await transcribeAudio(inputFile);
-
-    fs.writeFileSync(outputFile, JSON.stringify(transcript, null, 2));
 
     try {
       const transcript = await transcribeAudio(inputFile);
-      fs.writeFileSync(outputFile, transcript);
+
+      fs.writeFileSync(outputFile, JSON.stringify(transcript, null, 2));
+
       console.log(
         `[Transcript] (${index + 1}/${batchSize}) ${inputFile} successfully transcribed`,
       );
     } catch (error) {
+      console.error(`[Transcript failed] ${inputFile}`);
       console.error(error);
     }
   }
