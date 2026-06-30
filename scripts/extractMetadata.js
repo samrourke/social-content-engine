@@ -9,95 +9,96 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const TRANSCRIPTS_DIR = "output/transcripts";
-const METADATA_DIR = "output/metadata";
+export async function extractMetadata() {
+  const TRANSCRIPTS_DIR = "output/transcripts";
+  const METADATA_DIR = "output/metadata";
 
-const metadataSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    title: { type: "string" },
-    summary: { type: "string" },
-    searchDescription: { type: "string" },
-    videoType: {
-      type: "string",
-      enum: [
-        "Interview",
-        "Live Performance",
-        "Festival",
-        "Music Video",
-        "Behind the Scenes",
-        "Studio Session",
-        "Documentary",
-        "Unknown",
-      ],
+  const metadataSchema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      title: { type: "string" },
+      summary: { type: "string" },
+      searchDescription: { type: "string" },
+      videoType: {
+        type: "string",
+        enum: [
+          "Interview",
+          "Live Performance",
+          "Festival",
+          "Music Video",
+          "Behind the Scenes",
+          "Studio Session",
+          "Documentary",
+          "Unknown",
+        ],
+      },
+      tone: {
+        type: "array",
+        items: { type: "string" },
+      },
+      places: {
+        type: "array",
+        items: { type: "string" },
+      },
+      topics: {
+        type: "array",
+        items: { type: "string" },
+      },
+      keywords: {
+        type: "array",
+        items: { type: "string" },
+      },
+      people: {
+        type: "array",
+        items: { type: "string" },
+      },
+      entities: {
+        type: "array",
+        items: { type: "string" },
+      },
+      contentSignals: {
+        type: "array",
+        items: { type: "string" },
+      },
+      tags: {
+        type: "array",
+        items: { type: "string" },
+      },
     },
-    tone: {
-      type: "array",
-      items: { type: "string" },
-    },
-    places: {
-      type: "array",
-      items: { type: "string" },
-    },
-    topics: {
-      type: "array",
-      items: { type: "string" },
-    },
-    keywords: {
-      type: "array",
-      items: { type: "string" },
-    },
-    people: {
-      type: "array",
-      items: { type: "string" },
-    },
-    entities: {
-      type: "array",
-      items: { type: "string" },
-    },
-    contentSignals: {
-      type: "array",
-      items: { type: "string" },
-    },
-    tags: {
-      type: "array",
-      items: { type: "string" },
-    },
-  },
-  required: [
-    "title",
-    "summary",
-    "searchDescription",
-    "videoType",
-    "tone",
-    "places",
-    "topics",
-    "keywords",
-    "people",
-    "entities",
-    "contentSignals",
-    "tags",
-  ],
-};
+    required: [
+      "title",
+      "summary",
+      "searchDescription",
+      "videoType",
+      "tone",
+      "places",
+      "topics",
+      "keywords",
+      "people",
+      "entities",
+      "contentSignals",
+      "tags",
+    ],
+  };
 
-async function getJsonFiles(directory) {
-  try {
-    const files = await fs.readdir(directory);
-    return files.filter((file) => file.endsWith(".json"));
-  } catch {
-    return [];
+  async function getJsonFiles(directory) {
+    try {
+      const files = await fs.readdir(directory);
+      return files.filter((file) => file.endsWith(".json"));
+    } catch {
+      return [];
+    }
   }
-}
 
-async function extractMetadata(transcriptText) {
-  const response = await openai.responses.parse({
-    model: "gpt-5-mini",
+  async function getMetadata(transcriptText) {
+    const response = await openai.responses.parse({
+      model: "gpt-5-mini",
 
-    input: [
-      {
-        role: "system",
-        content: `
+      input: [
+        {
+          role: "system",
+          content: `
 You analyse transcripts from a music-related video archive.
 
 Your task is to extract factual metadata only.
@@ -177,81 +178,82 @@ Examples:
 tags:
 5–12 broad searchable tags. Avoid simply duplicating keywords.
         `,
+        },
+        {
+          role: "user",
+          content: transcriptText,
+        },
+      ],
+
+      text: {
+        format: {
+          type: "json_schema",
+          name: "metadata",
+          schema: metadataSchema,
+        },
       },
-      {
-        role: "user",
-        content: transcriptText,
-      },
-    ],
+    });
 
-    text: {
-      format: {
-        type: "json_schema",
-        name: "metadata",
-        schema: metadataSchema,
-      },
-    },
-  });
-
-  return response.output_parsed;
-}
-
-async function processTranscriptFiles() {
-  await fs.mkdir(METADATA_DIR, { recursive: true });
-
-  const transcripts = await getJsonFiles(TRANSCRIPTS_DIR);
-  const metadataFiles = await getJsonFiles(METADATA_DIR);
-
-  if (transcripts.length === 0) {
-    console.log("No transcript files found in /output/transcripts");
-    process.exit(0);
+    return response.output_parsed;
   }
 
-  const existingMetadata = new Set(
-    metadataFiles.map((file) => path.parse(file).name),
-  );
+  async function processTranscriptFiles() {
+    await fs.mkdir(METADATA_DIR, { recursive: true });
 
-  const pendingTranscripts = transcripts.filter((file) => {
-    const stem = path.parse(file).name;
-    return !existingMetadata.has(stem);
-  });
+    const transcripts = await getJsonFiles(TRANSCRIPTS_DIR);
+    const metadataFiles = await getJsonFiles(METADATA_DIR);
 
-  if (pendingTranscripts.length === 0) {
-    console.log("No new transcript files found.");
-    process.exit(0);
-  }
-
-  console.log(
-    `Metadata extraction started. Files to process: ${pendingTranscripts.length}`,
-  );
-
-  for (const [index, file] of pendingTranscripts.entries()) {
-    const inputFile = path.join(TRANSCRIPTS_DIR, file);
-    const outputName = path.parse(file).name;
-    const outputFile = path.join(METADATA_DIR, `${outputName}.json`);
-
-    try {
-      const transcriptJson = JSON.parse(await fs.readFile(inputFile, "utf8"));
-
-      if (!transcriptJson.text || typeof transcriptJson.text !== "string") {
-        console.warn(`[Skipped] ${file} has no valid transcript text.`);
-        continue;
-      }
-
-      const metadata = await extractMetadata(transcriptJson.text);
-
-      await fs.writeFile(outputFile, JSON.stringify(metadata, null, 2));
-
-      console.log(
-        `[Metadata] (${index + 1}/${pendingTranscripts.length}) ${file} processed successfully.`,
-      );
-    } catch (error) {
-      console.error(`[Error] Failed to process ${file}`);
-      console.error(error);
+    if (transcripts.length === 0) {
+      console.log("No transcript files found in /output/transcripts");
+      return;
     }
+
+    const existingMetadata = new Set(
+      metadataFiles.map((file) => path.parse(file).name),
+    );
+
+    const pendingTranscripts = transcripts.filter((file) => {
+      const stem = path.parse(file).name;
+      return !existingMetadata.has(stem);
+    });
+
+    if (pendingTranscripts.length === 0) {
+      console.log("No new transcript files found.");
+      return;
+    }
+
+    console.log(
+      `Metadata extraction started. Files to process: ${pendingTranscripts.length}`,
+    );
+
+    for (const [index, file] of pendingTranscripts.entries()) {
+      const inputFile = path.join(TRANSCRIPTS_DIR, file);
+      const outputName = path.parse(file).name;
+      const outputFile = path.join(METADATA_DIR, `${outputName}.json`);
+
+      try {
+        const transcriptJson = JSON.parse(await fs.readFile(inputFile, "utf8"));
+
+        if (!transcriptJson.text || typeof transcriptJson.text !== "string") {
+          console.warn(`[Skipped] ${file} has no valid transcript text.`);
+          continue;
+        }
+
+        const metadata = await getMetadata(transcriptJson.text);
+
+        await fs.writeFile(outputFile, JSON.stringify(metadata, null, 2));
+
+        console.log(
+          `[Metadata] (${index + 1}/${pendingTranscripts.length}) ${file} processed successfully.`,
+        );
+      } catch (error) {
+        console.error(`[Error] Failed to process ${file}`);
+        console.error(error);
+      }
+    }
+
+    console.log("Metadata extraction complete.");
   }
 
-  console.log("Metadata extraction complete.");
+  await processTranscriptFiles();
 }
-
-processTranscriptFiles();

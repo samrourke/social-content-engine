@@ -9,94 +9,95 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const TRANSCRIPTS_DIR = "output/transcripts";
-const METADATA_DIR = "output/metadata";
-const CLIP_ANALYSIS_DIR = "output/clip-analysis";
+export async function selectClips() {
+  const TRANSCRIPTS_DIR = "output/transcripts";
+  const METADATA_DIR = "output/metadata";
+  const CLIP_ANALYSIS_DIR = "output/clip-analysis";
 
-const clipAnalysisSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    sourceTitle: { type: "string" },
-    overallClipPotential: { type: "number" },
-    overallReason: { type: "string" },
-    clips: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          title: { type: "string" },
-          topic: { type: "string" },
-          format: {
-            type: "string",
-            enum: [
-              "confession",
-              "funny-story",
-              "surprising-detail",
-              "behind-the-scenes",
-              "emotional-moment",
-              "strong-opinion",
-              "career-insight",
-              "fan-interest",
-              "other",
-            ],
+  const clipAnalysisSchema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      sourceTitle: { type: "string" },
+      overallClipPotential: { type: "number" },
+      overallReason: { type: "string" },
+      clips: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            title: { type: "string" },
+            topic: { type: "string" },
+            format: {
+              type: "string",
+              enum: [
+                "confession",
+                "funny-story",
+                "surprising-detail",
+                "behind-the-scenes",
+                "emotional-moment",
+                "strong-opinion",
+                "career-insight",
+                "fan-interest",
+                "other",
+              ],
+            },
+            viralScore: { type: "number" },
+            startSnippet: { type: "string" },
+            endSnippet: { type: "string" },
+            hook: { type: "string" },
+            hookReason: { type: "string" },
+            reasonToWatch: { type: "string" },
+            payoff: { type: "string" },
+            takeaway: { type: "string" },
+            onScreenText: { type: "string" },
+            captionIdea: { type: "string" },
+            estimatedDuration: { type: "number" },
+            requiresContext: { type: "boolean" },
+            confidence: { type: "number" },
           },
-          viralScore: { type: "number" },
-          startSnippet: { type: "string" },
-          endSnippet: { type: "string" },
-          hook: { type: "string" },
-          hookReason: { type: "string" },
-          reasonToWatch: { type: "string" },
-          payoff: { type: "string" },
-          takeaway: { type: "string" },
-          onScreenText: { type: "string" },
-          captionIdea: { type: "string" },
-          estimatedDuration: { type: "number" },
-          requiresContext: { type: "boolean" },
-          confidence: { type: "number" },
+          required: [
+            "title",
+            "topic",
+            "format",
+            "viralScore",
+            "startSnippet",
+            "endSnippet",
+            "hook",
+            "hookReason",
+            "reasonToWatch",
+            "payoff",
+            "takeaway",
+            "onScreenText",
+            "captionIdea",
+            "estimatedDuration",
+            "requiresContext",
+            "confidence",
+          ],
         },
-        required: [
-          "title",
-          "topic",
-          "format",
-          "viralScore",
-          "startSnippet",
-          "endSnippet",
-          "hook",
-          "hookReason",
-          "reasonToWatch",
-          "payoff",
-          "takeaway",
-          "onScreenText",
-          "captionIdea",
-          "estimatedDuration",
-          "requiresContext",
-          "confidence",
-        ],
       },
     },
-  },
-  required: ["sourceTitle", "overallClipPotential", "overallReason", "clips"],
-};
+    required: ["sourceTitle", "overallClipPotential", "overallReason", "clips"],
+  };
 
-async function getJsonFiles(directory) {
-  try {
-    const files = await fs.readdir(directory);
-    return files.filter((file) => file.endsWith(".json"));
-  } catch {
-    return [];
+  async function getJsonFiles(directory) {
+    try {
+      const files = await fs.readdir(directory);
+      return files.filter((file) => file.endsWith(".json"));
+    } catch {
+      return [];
+    }
   }
-}
 
-async function selectClips({ transcriptText, metadata }) {
-  const response = await openai.responses.parse({
-    model: "gpt-5.5",
+  async function processClips({ transcriptText, metadata }) {
+    const response = await openai.responses.parse({
+      model: "gpt-5.5",
 
-    input: [
-      {
-        role: "system",
-        content: `
+      input: [
+        {
+          role: "system",
+          content: `
 You are an expert short-form video editor and social media strategist.
 
 You analyse music-related interview transcripts and identify only the strongest TikTok / Reels / Shorts candidates.
@@ -161,91 +162,92 @@ For requiresContext:
 true means the clip probably needs setup outside the clip.
 false means it works by itself.
         `,
+        },
+        {
+          role: "user",
+          content: JSON.stringify(
+            {
+              metadata,
+              transcript: transcriptText,
+            },
+            null,
+            2,
+          ),
+        },
+      ],
+
+      text: {
+        format: {
+          type: "json_schema",
+          name: "clip_analysis",
+          schema: clipAnalysisSchema,
+        },
       },
-      {
-        role: "user",
-        content: JSON.stringify(
-          {
-            metadata,
-            transcript: transcriptText,
-          },
-          null,
-          2,
-        ),
-      },
-    ],
+    });
 
-    text: {
-      format: {
-        type: "json_schema",
-        name: "clip_analysis",
-        schema: clipAnalysisSchema,
-      },
-    },
-  });
-
-  return response.output_parsed;
-}
-
-async function processClipSelection() {
-  await fs.mkdir(CLIP_ANALYSIS_DIR, { recursive: true });
-
-  const transcriptFiles = await getJsonFiles(TRANSCRIPTS_DIR);
-  const existingClipAnalysisFiles = await getJsonFiles(CLIP_ANALYSIS_DIR);
-
-  const existingClipAnalysis = new Set(
-    existingClipAnalysisFiles.map((file) => path.parse(file).name),
-  );
-
-  const pendingFiles = transcriptFiles.filter((file) => {
-    const stem = path.parse(file).name;
-    return !existingClipAnalysis.has(stem);
-  });
-
-  if (pendingFiles.length === 0) {
-    console.log("No new transcript files found for clip analysis.");
-    process.exit(0);
+    return response.output_parsed;
   }
 
-  console.log(
-    `Clip selection started. Files to process: ${pendingFiles.length}`,
-  );
+  async function processClipSelection() {
+    await fs.mkdir(CLIP_ANALYSIS_DIR, { recursive: true });
 
-  for (const [index, file] of pendingFiles.entries()) {
-    const stem = path.parse(file).name;
+    const transcriptFiles = await getJsonFiles(TRANSCRIPTS_DIR);
+    const existingClipAnalysisFiles = await getJsonFiles(CLIP_ANALYSIS_DIR);
 
-    const transcriptPath = path.join(TRANSCRIPTS_DIR, file);
-    const metadataPath = path.join(METADATA_DIR, `${stem}.json`);
-    const outputPath = path.join(CLIP_ANALYSIS_DIR, `${stem}.json`);
+    const existingClipAnalysis = new Set(
+      existingClipAnalysisFiles.map((file) => path.parse(file).name),
+    );
 
-    try {
-      const transcriptJson = JSON.parse(
-        await fs.readFile(transcriptPath, "utf8"),
-      );
-      const metadata = JSON.parse(await fs.readFile(metadataPath, "utf8"));
+    const pendingFiles = transcriptFiles.filter((file) => {
+      const stem = path.parse(file).name;
+      return !existingClipAnalysis.has(stem);
+    });
 
-      if (!transcriptJson.text || typeof transcriptJson.text !== "string") {
-        console.warn(`[Skipped] ${file} has no valid transcript text.`);
-        continue;
-      }
-
-      const analysis = await selectClips({
-        transcriptText: transcriptJson.text,
-        metadata,
-      });
-
-      await fs.writeFile(outputPath, JSON.stringify(analysis, null, 2));
-
-      console.log(
-        `[Clips] (${index + 1}/${pendingFiles.length}) ${file} analysed successfully.`,
-      );
-    } catch (error) {
-      console.error(`[Error] Failed to analyse clips for ${file}`);
-      console.error(error);
+    if (pendingFiles.length === 0) {
+      console.log("No new transcript files found for clip analysis.");
+      return;
     }
+
+    console.log(
+      `Clip selection started. Files to process: ${pendingFiles.length}`,
+    );
+
+    for (const [index, file] of pendingFiles.entries()) {
+      const stem = path.parse(file).name;
+
+      const transcriptPath = path.join(TRANSCRIPTS_DIR, file);
+      const metadataPath = path.join(METADATA_DIR, `${stem}.json`);
+      const outputPath = path.join(CLIP_ANALYSIS_DIR, `${stem}.json`);
+
+      try {
+        const transcriptJson = JSON.parse(
+          await fs.readFile(transcriptPath, "utf8"),
+        );
+        const metadata = JSON.parse(await fs.readFile(metadataPath, "utf8"));
+
+        if (!transcriptJson.text || typeof transcriptJson.text !== "string") {
+          console.warn(`[Skipped] ${file} has no valid transcript text.`);
+          continue;
+        }
+
+        const analysis = await processClips({
+          transcriptText: transcriptJson.text,
+          metadata,
+        });
+
+        await fs.writeFile(outputPath, JSON.stringify(analysis, null, 2));
+
+        console.log(
+          `[Clip Selection] (${index + 1}/${pendingFiles.length}) ${file} analysed successfully.`,
+        );
+      } catch (error) {
+        console.error(`[Error] Failed to analyse clips for ${file}`);
+        console.error(error);
+      }
+    }
+
+    console.log("Clip selection complete.");
   }
 
-  console.log("Clip selection complete.");
+  await processClipSelection();
 }
-
-processClipSelection();

@@ -1,17 +1,21 @@
 import { extractAudio } from "./extractAudio.js";
-import { transcribeAudioFiles } from "./transcribe.js";
+import { transcribe } from "./transcribe.js";
 import { extractMetadata } from "./extractMetadata.js";
-import { analyseClips } from "./analyseClips.js";
+import { selectClips } from "./selectClips.js";
 import { processClips } from "./processClips.js";
 
 async function runPipeline() {
   try {
     console.log("Starting content pipeline...");
 
-    await extractAudio();
-    await transcribeAudioFiles();
-    await extractMetadata();
-    await analyseClips();
+    // await extractAudio();
+
+    // await transcribe();
+
+    // await extractMetadata();
+
+    // await selectClips();
+
     await processClips();
 
     console.log("Pipeline complete.");
