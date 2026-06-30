@@ -8,13 +8,13 @@ async function runPipeline() {
   try {
     console.log("Starting content pipeline...");
 
-    // await extractAudio();
+    await extractAudio();
 
-    // await transcribe();
+    await transcribe();
 
-    // await extractMetadata();
+    await extractMetadata();
 
-    // await selectClips();
+    await selectClips();
 
     await processClips();
 

@@ -133,28 +133,52 @@ export async function processClips() {
 
     const clipAnalysisFiles = await getJsonFiles(CLIP_ANALYSIS_DIR);
 
+    // const clipAnalysisFiles = fs
+    //   .readdirSync("output/clip-analysis")
+    //   .filter((file) => file.endsWith(".json"));
+
     if (clipAnalysisFiles.length === 0) {
       console.log("No clip analysis files found.");
       return;
     }
 
-    const existingClips = new Set(
-      OUTPUT_CLIPS_DIR.map((dir) => path.parse(dir).name),
+    /* Get clips directory */
+    const existingClips = (
+      await fs.readdir(OUTPUT_CLIPS_DIR, { withFileTypes: true })
+    )
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+
+    /* Filter clip directory to find  folders with clips inside - these are already processed. 
+Empty ones might need to be processed still so are not included inside processedClips */
+
+    const processedClips = [];
+
+    for (const folder of existingClips) {
+      const folderPath = path.join(OUTPUT_CLIPS_DIR, folder);
+      const contents = await fs.readdir(folderPath);
+
+      if (contents.length !== 0) {
+        processedClips.push(folder);
+      }
+    }
+
+    const processedClipStems = new Set(
+      processedClips.map((folder) => path.parse(folder).name),
     );
 
-    const pendingFiles = existingClips.filter((dir) => {
-      const stem = path.parse(dir).name;
-      return !existingClips.has(stem);
+    const pendingDataFiles = clipAnalysisFiles.filter((file) => {
+      return !processedClipStems.has(path.parse(file).name);
     });
 
-    console.log(`Found ${clipAnalysisFiles.length} clip analysis file(s).`);
-
-    if (pendingFiles.length === 0) {
+    if (pendingDataFiles.length === 0) {
       console.log("No new Clip Analysis Files found");
       return;
     }
 
-    for (const analysisFile of clipAnalysisFiles) {
+    console.log(`Found ${pendingDataFiles.length} new clip analysis file(s).`);
+
+    for (const analysisFile of pendingDataFiles) {
       const stem = path.parse(analysisFile).name;
 
       const transcriptPath = path.join(TRANSCRIPTS_DIR, `${stem}.json`);
