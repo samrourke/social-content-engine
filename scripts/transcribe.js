@@ -54,6 +54,7 @@ It's already processed */
       file: fs.createReadStream(input),
       model: "whisper-1",
       response_format: "verbose_json",
+      language: "en",
     });
 
     // console.log(JSON.stringify(transcript, null, 2));
