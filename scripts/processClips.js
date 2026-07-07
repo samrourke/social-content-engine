@@ -174,7 +174,7 @@ Empty ones might need to be processed still so are not included inside processed
     if (pendingDataFiles.length === 0) {
       console.log("No new Clip Analysis Files found");
       return;
-    }
+    } 
 
     console.log(`Found ${pendingDataFiles.length} new clip analysis file(s).`);
 
