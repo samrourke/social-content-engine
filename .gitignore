@@ -1,4 +1,14 @@
-# Downloaded source videos
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# macOS
+.DS_Store
+
+# Downloaded content
 input/
 
 # Generated pipeline output
@@ -7,6 +17,3 @@ output/transcripts/
 output/metadata/
 output/clip-analysis/
 output/clips/
-
-
-.DS_Store
