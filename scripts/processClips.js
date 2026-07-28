@@ -12,8 +12,8 @@ export async function processClips() {
   const CLIP_ANALYSIS_DIR = "output/clip-analysis";
   const OUTPUT_CLIPS_DIR = "output/clips";
 
-  const START_PAD = 0.5;
-  const END_PAD = 3;
+  const START_PAD = 5;
+  const END_PAD = 5;
 
   async function getJsonFiles(directory) {
     try {
@@ -174,7 +174,7 @@ Empty ones might need to be processed still so are not included inside processed
     if (pendingDataFiles.length === 0) {
       console.log("No new Clip Analysis Files found");
       return;
-    } 
+    }
 
     console.log(`Found ${pendingDataFiles.length} new clip analysis file(s).`);
 
