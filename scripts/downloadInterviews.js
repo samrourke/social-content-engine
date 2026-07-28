@@ -5,7 +5,7 @@ import path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 
-dotenv.config({ path: ".env.local" });
+dotenv.config({ path: ".env" });
 
 const execFileAsync = promisify(execFile);
 
