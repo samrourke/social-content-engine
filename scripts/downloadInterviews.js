@@ -11,7 +11,7 @@ const execFileAsync = promisify(execFile);
 
 const INPUT_DIR = "input";
 const TABLE_NAME = "content_sources";
-const BATCH_SIZE = 2;
+const BATCH_SIZE = 6;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
