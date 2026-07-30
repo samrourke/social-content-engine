@@ -14,7 +14,7 @@ const INTERVIEWS_DIR = path.join(INPUT_DIR, "interview");
 const PERFORMANCES_DIR = path.join(INPUT_DIR, "performance");
 
 const TABLE_NAME = "circa_full_content";
-const BATCH_SIZE = 10;
+const BATCH_SIZE = 56;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -44,6 +44,18 @@ function isInterview(source) {
 
 function getOutputDirectory(source) {
   return isInterview(source) ? INTERVIEWS_DIR : PERFORMANCES_DIR;
+}
+
+/*make sure URL is valid, remove any excess text and whitespace */
+
+function extractUrl(value) {
+  if (!value || typeof value !== "string") {
+    return null;
+  }
+
+  const match = value.match(/https?:\/\/[^\s]+/i);
+
+  return match ? match[0].trim() : null;
 }
 
 async function fileExists(filePath) {
@@ -94,6 +106,12 @@ async function getPendingSources() {
 }
 
 async function downloadVideo(source) {
+  const sourceUrl = extractUrl(source.source_url);
+
+  if (!sourceUrl) {
+    throw new Error(`No valid URL found in source_url: ${source.source_url}`);
+  }
+
   const safeTitle = sanitiseFilename(source.title || "untitled-video");
   const outputDirectory = getOutputDirectory(source);
 
@@ -131,20 +149,28 @@ async function downloadVideo(source) {
       source.title
     }`,
   );
-  console.log(source.source_url);
+  console.log(sourceUrl);
 
   const args = [
     "--no-playlist",
     "--newline",
+
+    "--cookies-from-browser",
+    "firefox",
+
     "--format",
     "bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080]/b",
+
     "--merge-output-format",
     "mp4",
+
     "--output",
     outputTemplate,
+
     "--print",
     "after_move:filepath",
-    source.source_url,
+
+    sourceUrl,
   ];
 
   const { stdout, stderr } = await execFileAsync("yt-dlp", args, {
