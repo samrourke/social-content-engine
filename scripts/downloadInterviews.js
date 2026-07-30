@@ -10,8 +10,11 @@ dotenv.config({ path: ".env" });
 const execFileAsync = promisify(execFile);
 
 const INPUT_DIR = "input";
-const TABLE_NAME = "content_sources";
-const BATCH_SIZE = 6;
+const INTERVIEWS_DIR = path.join(INPUT_DIR, "interview");
+const PERFORMANCES_DIR = path.join(INPUT_DIR, "performance");
+
+const TABLE_NAME = "circa_full_content";
+const BATCH_SIZE = 10;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -33,6 +36,14 @@ function sanitiseFilename(value) {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 80);
+}
+
+function isInterview(source) {
+  return source.archive_category?.trim().toLowerCase() === "interview";
+}
+
+function getOutputDirectory(source) {
+  return isInterview(source) ? INTERVIEWS_DIR : PERFORMANCES_DIR;
 }
 
 async function fileExists(filePath) {
@@ -61,10 +72,18 @@ async function updateSource(id, values) {
 async function getPendingSources() {
   const { data, error } = await supabase
     .from(TABLE_NAME)
-    .select("id, title, source_url, downloaded_filename, download_status")
+    .select(
+      `
+        id,
+        title,
+        source_url,
+        archive_category,
+        downloaded_filename,
+        download_status
+      `,
+    )
     .in("download_status", ["pending", "failed"])
     .not("source_url", "is", null)
-    .order("created_at", { ascending: true })
     .limit(BATCH_SIZE);
 
   if (error) {
@@ -75,22 +94,26 @@ async function getPendingSources() {
 }
 
 async function downloadVideo(source) {
-  const safeTitle = sanitiseFilename(source.title || "interview");
+  const safeTitle = sanitiseFilename(source.title || "untitled-video");
+  const outputDirectory = getOutputDirectory(source);
+
+  await fs.mkdir(outputDirectory, { recursive: true });
 
   /*
-   * Including the database ID guarantees uniqueness even where two
-   * interviews have the same title.
+   * Including the database ID guarantees uniqueness when multiple
+   * videos have the same title.
    */
   const stem = `${safeTitle}-${source.id}`;
-  const outputTemplate = path.join(INPUT_DIR, `${stem}.%(ext)s`);
-  const expectedOutputPath = path.join(INPUT_DIR, `${stem}.mp4`);
+
+  const outputTemplate = path.join(outputDirectory, `${stem}.%(ext)s`);
+  const expectedOutputPath = path.join(outputDirectory, `${stem}.mp4`);
 
   if (await fileExists(expectedOutputPath)) {
     console.log(`[Already downloaded] ${expectedOutputPath}`);
 
     await updateSource(source.id, {
       download_status: "downloaded",
-      downloaded_filename: `${stem}.mp4`,
+      downloaded_filename: path.relative(INPUT_DIR, expectedOutputPath),
       downloaded_at: new Date().toISOString(),
       download_error: null,
     });
@@ -103,15 +126,13 @@ async function downloadVideo(source) {
     download_error: null,
   });
 
-  console.log(`[Downloading] ${source.title}`);
+  console.log(
+    `[Downloading ${isInterview(source) ? "interview" : "performance"}] ${
+      source.title
+    }`,
+  );
   console.log(source.source_url);
 
-  /*
-   * Format preference:
-   * 1. MP4 video up to 1080p + M4A audio
-   * 2. Any video up to 1080p + best audio
-   * 3. Best combined format up to 1080p
-   */
   const args = [
     "--no-playlist",
     "--newline",
@@ -134,10 +155,6 @@ async function downloadVideo(source) {
     console.log(stderr.trim());
   }
 
-  /*
-   * The last stdout line printed by after_move:filepath should be the
-   * final path after yt-dlp has merged or remuxed the file.
-   */
   const outputLines = stdout
     .trim()
     .split("\n")
@@ -145,6 +162,7 @@ async function downloadVideo(source) {
     .filter(Boolean);
 
   const reportedOutputPath = outputLines.at(-1);
+
   const finalPath =
     reportedOutputPath && (await fileExists(reportedOutputPath))
       ? reportedOutputPath
@@ -156,11 +174,16 @@ async function downloadVideo(source) {
     );
   }
 
-  const finalFilename = path.basename(finalPath);
+  /*
+   * Store the path relative to input, for example:
+   * interviews/video-title-id.mp4
+   * performances/video-title-id.mp4
+   */
+  const storedFilename = path.relative(INPUT_DIR, finalPath);
 
   await updateSource(source.id, {
     download_status: "downloaded",
-    downloaded_filename: finalFilename,
+    downloaded_filename: storedFilename,
     downloaded_at: new Date().toISOString(),
     download_error: null,
   });
@@ -170,17 +193,25 @@ async function downloadVideo(source) {
   return finalPath;
 }
 
-export async function downloadInterviews() {
-  await fs.mkdir(INPUT_DIR, { recursive: true });
+export async function downloadContent() {
+  await Promise.all([
+    fs.mkdir(INTERVIEWS_DIR, { recursive: true }),
+    fs.mkdir(PERFORMANCES_DIR, { recursive: true }),
+  ]);
 
   const sources = await getPendingSources();
 
   if (sources.length === 0) {
-    console.log("No interviews waiting to be downloaded.");
+    console.log("No videos waiting to be downloaded.");
     return;
   }
 
-  console.log(`Found ${sources.length} interview(s) to download.`);
+  const interviewCount = sources.filter(isInterview).length;
+  const performanceCount = sources.length - interviewCount;
+
+  console.log(`Found ${sources.length} video(s) to download.`);
+  console.log(`Interviews: ${interviewCount}`);
+  console.log(`Performances: ${performanceCount}`);
 
   for (const [index, source] of sources.entries()) {
     console.log(
@@ -211,4 +242,4 @@ export async function downloadInterviews() {
   console.log("\nDownload queue complete.");
 }
 
-await downloadInterviews();
+await downloadContent();
