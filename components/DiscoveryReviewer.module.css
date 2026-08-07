@@ -2,6 +2,7 @@
   width: min(1400px, calc(100% - 48px));
   margin: 0 auto;
   padding: 20px 0 80px;
+
 }
 
 /* ---------------------------
@@ -16,7 +17,7 @@
 
 .progressTitle {
   margin: 0 0 12px;
-  font-size: 2rem;
+  font-size: 3rem;
   line-height: 1;
 }
 
@@ -28,8 +29,8 @@
 
 .progressStats {
   margin: 0 0 24px;
-  font-size: 0.875rem;
-  opacity: 0.6;
+  font-size:1rem;
+  opacity: 0.96;
 }
 
 .progressDetails {
@@ -43,7 +44,10 @@
 .progressBar {
   display: block;
   width: 100%;
-  height: 10px;
+  height: 15px;
+  border-radius: 5px;
+  border: 1px solid var(--color-border);
+
 }
 
 /* ---------------------------
@@ -97,6 +101,7 @@
   display: flex;
   flex-direction: column;
   gap: 40px;
+  align-items: center;
 }
 
 .metadata {
@@ -162,11 +167,15 @@
 .actions {
   padding-top: 10px;
   border-top: 1px solid #ddd;
+ display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .actionLabel {
   margin: 0 0 12px;
-  font-size: 0.75rem;
+  font-size: 2rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -176,16 +185,20 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+
+
+  
+
 }
 
 .categoryButton,
 .rejectButton {
   min-height: 48px;
   padding: 10px 16px;
-  border: 1px solid #222;
+  border: 2px solid var(--color-surface);
   border-radius: 4px;
-  background: transparent;
-  color: inherit;
+  background: var(--color-surface);
+  color: var(--color-deep-green);
   font: inherit;
   cursor: pointer;
   transition:
@@ -194,17 +207,18 @@
 }
 
 .categoryButton:hover {
-  background: #222;
+  background: var(--color-fern);
   color: #fff;
 }
 
 .rejectButton {
-  width: 100%;
+  width: 80%;
   margin-top: 24px;
+  
 }
 
 .rejectButton:hover {
-  background: #222;
+  background: rgb(194, 35, 35);
   color: #fff;
 }
 

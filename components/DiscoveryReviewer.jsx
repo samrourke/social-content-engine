@@ -107,10 +107,6 @@ export default function DiscoveryReviewer({ initialDiscovery, initialCounts }) {
                 />
               )
             )}
-          </div>
-
-          {/* Information */}
-          <div className={styles.infoColumn}>
             <div className={styles.metadata}>
               <h2 className={styles.title}>{discovery.title}</h2>
 
@@ -119,18 +115,6 @@ export default function DiscoveryReviewer({ initialDiscovery, initialCounts }) {
               <p className={styles.date}>
                 {new Date(discovery.published_at).toLocaleDateString()}
               </p>
-
-              <div className={styles.details}>
-                <p className={styles.detail}>
-                  <span>Suggested type</span>
-                  {discovery.suggested_content_type}
-                </p>
-
-                <p className={styles.detail}>
-                  <span>Discovery score</span>
-                  {discovery.discovery_score}
-                </p>
-              </div>
 
               <a
                 className={styles.youtubeLink}
@@ -141,7 +125,10 @@ export default function DiscoveryReviewer({ initialDiscovery, initialCounts }) {
                 Open on YouTube ↗
               </a>
             </div>
+          </div>
 
+          {/* Information */}
+          <div className={styles.infoColumn}>
             <div className={styles.actions}>
               <p className={styles.actionLabel}>Keep as</p>
 
@@ -163,6 +150,17 @@ export default function DiscoveryReviewer({ initialDiscovery, initialCounts }) {
               >
                 Reject
               </button>
+              <div className={styles.details}>
+                <p className={styles.detail}>
+                  <span>Suggested type</span>
+                  {discovery.suggested_content_type}
+                </p>
+
+                <p className={styles.detail}>
+                  <span>Discovery score</span>
+                  {discovery.discovery_score}
+                </p>
+              </div>
             </div>
           </div>
         </div>

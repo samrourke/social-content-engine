@@ -1,0 +1,309 @@
+/* globals.css */
+
+:root {
+  /* ---------------------------------
+     Colour palette
+  ---------------------------------- */
+
+  --color-alabaster: #dad7cd;
+  --color-sage: #a3b18a;
+  --color-fern: #588157;
+  --color-hunter: #3a5a40;
+  --color-deep-green: #344e41;
+
+  /* Semantic colours */
+
+  --color-background: #dad7cd;
+  --color-surface: #e4e1d8;
+  --color-surface-muted: #cdd1bc;
+
+  --color-text: #e4e1d8;
+  --color-text-muted: #5f6f62;
+  --color-text-light: #dad7cd;
+
+  --color-primary: #344e41;
+  --color-primary-hover: #3a5a40;
+
+  --color-secondary: #588157;
+  --color-secondary-hover: #3a5a40;
+
+  --color-accent: #a3b18a;
+
+  --color-border: rgba(52, 78, 65, 0.22);
+  --color-border-strong: rgba(52, 78, 65, 0.5);
+
+  /* ---------------------------------
+     Layout
+  ---------------------------------- */
+
+  --page-width: 1440px;
+  --content-width: 1200px;
+
+  --page-padding: clamp(1rem, 3vw, 3rem);
+
+  /* ---------------------------------
+     Spacing
+  ---------------------------------- */
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --space-9: 6rem;
+
+  /* ---------------------------------
+     Typography
+  ---------------------------------- */
+
+  --font-sans:
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 2rem;
+  --font-size-3xl: clamp(2rem, 4vw, 4rem);
+
+  --line-height-tight: 1.1;
+  --line-height-normal: 1.5;
+
+  /* ---------------------------------
+     UI
+  ---------------------------------- */
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+
+  --transition-fast: 150ms ease;
+  --transition-standard: 250ms ease;
+}
+
+/* =================================
+   Reset
+================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+
+  background: var(--color-deep-green);
+  color: var(--color-text);
+
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  line-height: var(--line-height-tight);
+}
+
+p {
+  margin-bottom: 1rem;
+}
+
+/* =================================
+   Selection
+================================= */
+
+::selection {
+  background: var(--color-deep-green);
+  color: var(--color-alabaster);
+}
+
+/* =================================
+   Links
+================================= */
+
+a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--color-fern);
+}
+
+/* =================================
+   Buttons
+================================= */
+
+button {
+  border: 0;
+  border-radius: var(--radius-sm);
+
+  background: var(--color-primary);
+  color: var(--color-text-light);
+
+  cursor: pointer;
+
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+button:hover {
+  background: var(--color-primary-hover);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* =================================
+   Forms
+================================= */
+
+input,
+textarea,
+select {
+  width: 100%;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+
+  background: rgba(255, 255, 255, 0.25);
+  color: var(--color-text);
+
+  padding: 0.75rem 1rem;
+
+  outline: none;
+
+  transition: border-color var(--transition-fast);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--color-deep-green);
+}
+
+/* =================================
+   Progress
+================================= */
+
+progress {
+  appearance: none;
+  -webkit-appearance: none;
+
+  overflow: hidden;
+
+  border: 0;
+  border-radius: 999px;
+
+  background: var(--color-sage);
+}
+
+progress::-webkit-progress-bar {
+  background: var(--color-sage);
+}
+
+progress::-webkit-progress-value {
+  background: var(--color-deep-green);
+}
+
+progress::-moz-progress-bar {
+  background: var(--color-deep-green);
+}
+
+/* =================================
+   Utility containers
+================================= */
+
+.page {
+  width: min(
+    var(--page-width),
+    calc(100% - (var(--page-padding) * 2))
+  );
+
+  margin-inline: auto;
+}
+
+.content {
+  width: min(
+    var(--content-width),
+    calc(100% - (var(--page-padding) * 2))
+  );
+
+  margin-inline: auto;
+}
+
+/* =================================
+   Generic surface
+================================= */
+
+.surface {
+  background: var(--color-surface);
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}

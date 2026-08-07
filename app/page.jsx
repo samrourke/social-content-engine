@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import DiscoveryReviewer from "../components/DiscoveryReviewer";
 import styles from "./page.module.css";
+import "./globals.css";
 
 export default async function ContentReviewPage() {
   const [
@@ -49,37 +50,7 @@ export default async function ContentReviewPage() {
   ]);
 
   if (error) {
-    return (
-      <main>
-        <header className={styles.progress}>
-          <h1 className={styles.progressTitle}>Content Review</h1>
-
-          <p className={styles.progressRemaining}>
-            {counts.pending} videos left to review
-          </p>
-
-          <p className={styles.progressStats}>
-            {counts.approved} approved · {counts.rejected} rejected ·{" "}
-            {counts.total} total
-          </p>
-
-          <div className={styles.progressDetails}>
-            <span>
-              {reviewed} / {counts.total} reviewed
-            </span>
-
-            <span>{progress}%</span>
-          </div>
-
-          <progress
-            className={styles.progressBar}
-            value={reviewed}
-            max={counts.total}
-          />
-        </header>
-        Error loading discovery: {error.message}
-      </main>
-    );
+    return <main>Error loading discovery: {error.message}</main>;
   }
 
   return (
