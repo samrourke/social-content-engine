@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import styles from "./DiscoveryReviewer.module.css";
 
 const CATEGORIES = [
   "Interview",
@@ -12,8 +13,15 @@ const CATEGORIES = [
   "Other",
 ];
 
-export default function DiscoveryReviewer({ initialDiscovery }) {
+export default function DiscoveryReviewer({ initialDiscovery, initialCounts }) {
   const [discovery, setDiscovery] = useState(initialDiscovery);
+
+  const [counts, setCounts] = useState(initialCounts);
+
+  const reviewed = counts.approved + counts.rejected;
+
+  const progress =
+    counts.total > 0 ? Math.round((reviewed / counts.total) * 100) : 0;
 
   async function review(status, archiveCategory = null) {
     const response = await fetch("/api/discoveries/review", {
@@ -36,39 +44,129 @@ export default function DiscoveryReviewer({ initialDiscovery }) {
     }
 
     setDiscovery(data.nextDiscovery);
-  }
 
-  if (!discovery) {
-    return <p>No discoveries left to review.</p>;
+    setCounts((current) => ({
+      ...current,
+      pending: Math.max(current.pending - 1, 0),
+      approved: status === "approved" ? current.approved + 1 : current.approved,
+      rejected: status === "rejected" ? current.rejected + 1 : current.rejected,
+    }));
   }
 
   return (
-    <section>
-      {discovery.thumbnail_url && <img src={discovery.thumbnail_url} alt="" />}
+    <section className={styles.reviewer}>
+      <header className={styles.progress}>
+        <h1 className={styles.progressTitle}>Content Review</h1>
 
-      <h1>{discovery.title}</h1>
+        <p className={styles.progressRemaining}>
+          {counts.pending} videos left to review
+        </p>
 
-      <p>{discovery.channel_name}</p>
+        <p className={styles.progressStats}>
+          {counts.approved} approved · {counts.rejected} rejected ·{" "}
+          {counts.total} total
+        </p>
 
-      <p>{new Date(discovery.published_at).toLocaleDateString()}</p>
+        <div className={styles.progressDetails}>
+          <span>
+            {reviewed} / {counts.total} reviewed
+          </span>
 
-      <p>Suggested type: {discovery.suggested_content_type}</p>
+          <span>{progress}%</span>
+        </div>
 
-      <p>Discovery score: {discovery.discovery_score}</p>
+        <progress
+          className={styles.progressBar}
+          value={reviewed}
+          max={counts.total}
+        />
+      </header>
+      {!discovery && (
+        <div className={styles.emptyState}>No discoveries left to review.</div>
+      )}
+      {discovery && (
+        <div className={styles.reviewLayout}>
+          {/* Video */}
+          <div className={styles.mediaColumn}>
+            {discovery.platform === "youtube" ? (
+              <div className={styles.videoWrapper}>
+                <iframe
+                  className={styles.video}
+                  src={`https://www.youtube.com/embed/${discovery.platform_video_id}`}
+                  title={discovery.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              discovery.thumbnail_url && (
+                <img
+                  className={styles.thumbnail}
+                  src={discovery.thumbnail_url}
+                  alt=""
+                />
+              )
+            )}
+          </div>
 
-      <a href={discovery.source_url} target="_blank" rel="noreferrer">
-        Open on YouTube
-      </a>
+          {/* Information */}
+          <div className={styles.infoColumn}>
+            <div className={styles.metadata}>
+              <h2 className={styles.title}>{discovery.title}</h2>
 
-      <div>
-        {CATEGORIES.map((category) => (
-          <button key={category} onClick={() => review("approved", category)}>
-            {category}
-          </button>
-        ))}
-      </div>
+              <p className={styles.channel}>{discovery.channel_name}</p>
 
-      <button onClick={() => review("rejected")}>Reject</button>
+              <p className={styles.date}>
+                {new Date(discovery.published_at).toLocaleDateString()}
+              </p>
+
+              <div className={styles.details}>
+                <p className={styles.detail}>
+                  <span>Suggested type</span>
+                  {discovery.suggested_content_type}
+                </p>
+
+                <p className={styles.detail}>
+                  <span>Discovery score</span>
+                  {discovery.discovery_score}
+                </p>
+              </div>
+
+              <a
+                className={styles.youtubeLink}
+                href={discovery.source_url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open on YouTube ↗
+              </a>
+            </div>
+
+            <div className={styles.actions}>
+              <p className={styles.actionLabel}>Keep as</p>
+
+              <div className={styles.categoryGrid}>
+                {CATEGORIES.map((category) => (
+                  <button
+                    className={styles.categoryButton}
+                    key={category}
+                    onClick={() => review("approved", category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                className={styles.rejectButton}
+                onClick={() => review("rejected")}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
