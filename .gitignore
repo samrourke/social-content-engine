@@ -11,10 +11,6 @@ node_modules/
 # Downloaded content
 input/
 
+
 # Generated pipeline output
-output/audio/
-output/transcripts/
-output/metadata/
-output/clip-analysis/
-output/clips/
-output/orphaned-duplicates/
+output/
