@@ -192,7 +192,8 @@
 }
 
 .categoryButton,
-.rejectButton {
+.rejectButton,
+.undoButton {
   min-height: 48px;
   padding: 10px 16px;
   border: 2px solid var(--color-surface);
@@ -219,6 +220,16 @@
 
 .rejectButton:hover {
   background: rgb(194, 35, 35);
+  color: #fff;
+}
+
+.undoButton{
+    width: 80%;
+  margin-top: 24px;
+}
+
+.undoButton:hover {
+  background: var(--color-fern);
   color: #fff;
 }
 

@@ -15,6 +15,7 @@ const CATEGORIES = [
 
 export default function DiscoveryReviewer({ initialDiscovery, initialCounts }) {
   const [discovery, setDiscovery] = useState(initialDiscovery);
+  const [lastReviewed, setLastReviewed] = useState(null);
 
   const [counts, setCounts] = useState(initialCounts);
 
@@ -24,13 +25,15 @@ export default function DiscoveryReviewer({ initialDiscovery, initialCounts }) {
     counts.total > 0 ? Math.round((reviewed / counts.total) * 100) : 0;
 
   async function review(status, archiveCategory = null) {
+    const currentDiscovery = discovery;
+
     const response = await fetch("/api/discoveries/review", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        id: discovery.id,
+        id: currentDiscovery.id,
         status,
         archiveCategory,
       }),
@@ -43,6 +46,11 @@ export default function DiscoveryReviewer({ initialDiscovery, initialCounts }) {
       return;
     }
 
+    setLastReviewed({
+      discovery: currentDiscovery,
+      status,
+    });
+
     setDiscovery(data.nextDiscovery);
 
     setCounts((current) => ({
@@ -51,6 +59,44 @@ export default function DiscoveryReviewer({ initialDiscovery, initialCounts }) {
       approved: status === "approved" ? current.approved + 1 : current.approved,
       rejected: status === "rejected" ? current.rejected + 1 : current.rejected,
     }));
+  }
+
+  async function undoLastReview() {
+    if (!lastReviewed) return;
+
+    const response = await fetch("/api/discoveries/undo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: lastReviewed.discovery.id,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error(data.error);
+      return;
+    }
+
+    setDiscovery(lastReviewed.discovery);
+
+    setCounts((current) => ({
+      ...current,
+      pending: current.pending + 1,
+      approved:
+        lastReviewed.status === "approved"
+          ? Math.max(current.approved - 1, 0)
+          : current.approved,
+      rejected:
+        lastReviewed.status === "rejected"
+          ? Math.max(current.rejected - 1, 0)
+          : current.rejected,
+    }));
+
+    setLastReviewed(null);
   }
 
   return (
@@ -149,6 +195,14 @@ export default function DiscoveryReviewer({ initialDiscovery, initialCounts }) {
                 onClick={() => review("rejected")}
               >
                 Reject
+              </button>
+
+              <button
+                className={styles.undoButton}
+                onClick={undoLastReview}
+                disabled={!lastReviewed}
+              >
+                Undo
               </button>
               <div className={styles.details}>
                 <p className={styles.detail}>
