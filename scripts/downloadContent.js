@@ -11,7 +11,7 @@ const execFileAsync = promisify(execFile);
 
 const INPUT_DIR = "input";
 const TABLE_NAME = "circa_full_content";
-const BATCH_SIZE = 10;
+const BATCH_SIZE = 30;
 
 const CATEGORY_DIRECTORIES = {
   interview: "interviews",
@@ -251,6 +251,9 @@ export async function downloadContent() {
 
   const categoryCounts = {};
 
+  let successfulDownloads = 0;
+  let failedDownloads = 0;
+
   for (const source of sources) {
     const category = source.archive_category?.trim() || "Other";
 
@@ -268,7 +271,11 @@ export async function downloadContent() {
 
     try {
       await downloadVideo(source);
+
+      successfulDownloads++;
     } catch (error) {
+      failedDownloads++;
+
       const message =
         error instanceof Error ? error.message : "Unknown download error";
 
@@ -287,7 +294,13 @@ export async function downloadContent() {
     }
   }
 
-  console.log("\nDownload queue complete.");
+  console.log("\n----------------------------");
+  console.log("DOWNLOAD SUMMARY");
+  console.log("----------------------------");
+  console.log(`Attempted:   ${sources.length}`);
+  console.log(`Successful:  ${successfulDownloads}`);
+  console.log(`Failed:      ${failedDownloads}`);
+  console.log("----------------------------");
 }
 
 await downloadContent();
