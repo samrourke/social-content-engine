@@ -2,12 +2,21 @@ import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import fs from "fs/promises";
 import path from "path";
+import VIDEO_DIRECTORIES from "../config/videoDirectories.js";
 
 dotenv.config({ path: ".env" });
 
 const TABLE_NAME = "circa_full_content";
 
-const VIDEO_DIRECTORIES = ["input/interview", "input/performance"];
+// const VIDEO_DIRECTORIES = [
+//   "input/interviews",
+//   "input/professional-live",
+//   "input/fan-live",
+//   "input/backstage-tour",
+//   "input/studio-acoustic",
+//   "input/official-promo",
+//   "input/other",
+// ];
 
 const QUARANTINE_DIRECTORY = "output/orphaned-duplicates";
 

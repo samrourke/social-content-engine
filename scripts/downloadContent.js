@@ -4,6 +4,7 @@ import fs from "fs/promises";
 import path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import CATEGORY_DIRECTORIES from "../config/categoryDirectories.js";
 
 dotenv.config({ path: ".env" });
 
@@ -12,16 +13,6 @@ const execFileAsync = promisify(execFile);
 const INPUT_DIR = "input";
 const TABLE_NAME = "circa_full_content";
 const BATCH_SIZE = 30;
-
-const CATEGORY_DIRECTORIES = {
-  interview: "interviews",
-  "professional live": "professional-live",
-  "fan live": "fan-live",
-  "backstage / tour": "backstage-tour",
-  "studio / acoustic": "studio-acoustic",
-  "official / promo": "official-promo",
-  other: "other",
-};
 
 function getOutputDirectory(source) {
   const category = source.archive_category?.trim().toLowerCase() ?? "other";
@@ -53,13 +44,6 @@ function sanitiseFilename(value) {
     .slice(0, 80);
 }
 
-// function getOutputDirectory(source) {
-//   const category = source.archive_category?.trim();
-
-//   const directoryName = CATEGORY_DIRECTORIES[category] ?? "other";
-
-//   return path.join(INPUT_DIR, directoryName);
-// }
 /*make sure URL is valid, remove any excess text and whitespace */
 
 function extractUrl(value) {
@@ -215,8 +199,9 @@ async function downloadVideo(source) {
   /*
    * Store the path relative to input, for example:
    * interviews/video-title-id.mp4
-   * performances/video-title-id.mp4
+   * professional-live/video-title-id.mp4
    */
+
   const storedFilename = path.relative(INPUT_DIR, finalPath);
 
   await updateSource(source.id, {

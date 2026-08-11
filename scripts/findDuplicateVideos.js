@@ -2,18 +2,18 @@ import fs from "fs/promises";
 import fsSync from "fs";
 import path from "path";
 import crypto from "crypto";
+import VIDEO_DIRECTORIES from "../config/videoDirectories.js";
 
-const VIDEO_DIRECTORIES = [
-  "input/interview",
-
-  "input/backstage-tour",
-  "input/fan-live",
-  "input/interviews",
-  "input/official-promo",
-  "input/other",
-  "input/professional-live",
-  "input/studio-acoustic",
-];
+// const VIDEO_DIRECTORIES = [
+//   "input/interview",
+//   "input/backstage-tour",
+//   "input/fan-live",
+//   "input/interviews",
+//   "input/official-promo",
+//   "input/other",
+//   "input/professional-live",
+//   "input/studio-acoustic",
+// ];
 
 const VIDEO_EXTENSIONS = new Set([
   ".mp4",
