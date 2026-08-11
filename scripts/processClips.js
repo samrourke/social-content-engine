@@ -184,7 +184,7 @@ Empty ones might need to be processed still so are not included inside processed
       const transcriptPath = path.join(TRANSCRIPTS_DIR, `${stem}.json`);
       const metadataPath = path.join(METADATA_DIR, `${stem}.json`);
       const clipAnalysisPath = path.join(CLIP_ANALYSIS_DIR, analysisFile);
-      const inputVideoPath = path.join(INPUT_VIDEO_DIR, `${stem}.mp4`);
+      const inputVideoPath = path.join(INTERVIEWS_DIR, `${stem}.mp4`);
       const outputDir = path.join(OUTPUT_CLIPS_DIR, stem);
 
       const requiredFiles = [

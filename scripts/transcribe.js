@@ -5,6 +5,8 @@ import path from "path";
 
 dotenv.config();
 
+const BATCH_SIZE = 10;
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -12,14 +14,19 @@ const openai = new OpenAI({
 export async function transcribe() {
   /* Create array of audio files */
 
+  /*Create Array of existing transcript files */
+  const AUDIO_DIR = "output/audio";
+  const TRANSCRIPTS_DIR = "output/transcripts";
+
+  fs.mkdirSync(AUDIO_DIR, { recursive: true });
+  fs.mkdirSync(TRANSCRIPTS_DIR, { recursive: true });
+
   const audioFiles = fs
-    .readdirSync("output/audio")
+    .readdirSync(AUDIO_DIR)
     .filter((file) => file.endsWith(".mp3"));
 
-  /*Create Array of existing transcript files */
-
   const transcripts = fs
-    .readdirSync("output/transcripts")
+    .readdirSync(TRANSCRIPTS_DIR)
     .filter((file) => file.endsWith(".json"));
 
   /*if no audio files - return */
@@ -49,6 +56,8 @@ It's already processed */
     return;
   }
 
+  const batch = processFiles.slice(0, BATCH_SIZE);
+
   async function transcribeAudio(input) {
     const transcript = await openai.audio.transcriptions.create({
       file: fs.createReadStream(input),
@@ -63,13 +72,13 @@ It's already processed */
   }
 
   async function processAudioFiles() {
-    const batchSize = processFiles.length;
+    const batchSize = batch.length;
 
     console.log(
       `Transcribing started...the number of files to process is ${batchSize}`,
     );
 
-    for (const [index, file] of processFiles.entries()) {
+    for (const [index, file] of batch.entries()) {
       const inputFile = path.join("output/audio", file);
       const outputName = path.parse(file).name;
       const outputFile = path.join("output/transcripts", `${outputName}.json`);
