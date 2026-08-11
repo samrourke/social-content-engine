@@ -4,8 +4,10 @@ import fs from "fs";
 import path from "path";
 
 export async function extractAudio() {
+  const INTERVIEWS_DIR = "input/interviews";
+
   const videoFiles = fs
-    .readdirSync("input")
+    .readdirSync(INTERVIEWS_DIR)
     .filter((file) => file.endsWith(".mp4"));
 
   const audioFiles = fs
@@ -61,7 +63,7 @@ all at once. Works better for large batches. */
 
     for (const [index, file] of pendingVideoFiles.entries()) {
       const outputName = path.parse(file).name;
-      const inputFile = path.join("input", file);
+      const inputFile = path.join(INTERVIEWS_DIR, file);
       const outputFile = path.join("output/audio", `${outputName}.mp3`);
 
       console.log(inputFile);

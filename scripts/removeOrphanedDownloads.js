@@ -8,16 +8,6 @@ dotenv.config({ path: ".env" });
 
 const TABLE_NAME = "circa_full_content";
 
-// const VIDEO_DIRECTORIES = [
-//   "input/interviews",
-//   "input/professional-live",
-//   "input/fan-live",
-//   "input/backstage-tour",
-//   "input/studio-acoustic",
-//   "input/official-promo",
-//   "input/other",
-// ];
-
 const QUARANTINE_DIRECTORY = "output/orphaned-duplicates";
 
 const DRY_RUN = false; // Set to true to simulate the cleanup without moving files

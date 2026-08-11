@@ -6,7 +6,7 @@ import { promisify } from "util";
 export async function processClips() {
   const execFileAsync = promisify(execFile);
 
-  const INPUT_VIDEO_DIR = "input";
+  const INTERVIEWS_DIR = "input/interviews";
   const TRANSCRIPTS_DIR = "output/transcripts";
   const METADATA_DIR = "output/metadata";
   const CLIP_ANALYSIS_DIR = "output/clip-analysis";
