@@ -41,10 +41,8 @@ all at once. Works better for large batches. */
       exec(
         `ffmpeg -y -i "${inputPath}" -vn -ar 16000 -ac 1 -b:a 64k "${outputPath}"`,
         (error, stdout, stderr) => {
-          console.log(stderr);
-
           if (error) {
-            console.error(error);
+            console.error(stderr);
             reject(error);
             return;
           }
@@ -57,8 +55,11 @@ all at once. Works better for large batches. */
 
   async function processVideos() {
     const batchSize = pendingVideoFiles.length;
+    let successful = 0;
+    let failed = 0;
+
     console.log(
-      `Audio extraction started...the number of files to process is ${batchSize}`,
+      `Audio extraction started... the number of files to process is ${batchSize}`,
     );
 
     for (const [index, file] of pendingVideoFiles.entries()) {
@@ -66,15 +67,23 @@ all at once. Works better for large batches. */
       const inputFile = path.join(INTERVIEWS_DIR, file);
       const outputFile = path.join("output/audio", `${outputName}.mp3`);
 
-      console.log(inputFile);
-      console.log(outputFile);
+      try {
+        await processAudio(inputFile, outputFile);
+        successful++;
 
-      await processAudio(inputFile, outputFile);
+        console.log(
+          `[Audio] (${index + 1}/${batchSize}) ${file} audio extracted`,
+        );
+      } catch (error) {
+        failed++;
 
-      console.log(
-        `[Audio] (${index + 1}/${batchSize}) ${inputFile} audio extracted`,
-      );
+        console.error(`[Audio] (${index + 1}/${batchSize}) FAILED: ${file}`);
+      }
     }
+
+    console.log("\nAudio extraction complete.");
+    console.log(`Successful: ${successful}`);
+    console.log(`Failed: ${failed}`);
   }
 
   await processVideos();
