@@ -4,7 +4,7 @@ import fs from "fs/promises";
 import path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import CATEGORY_DIRECTORIES from "../config/categoryDirectories.js";
+import { CATEGORY_DIRECTORIES } from "../config/archiveCategories.js";
 
 dotenv.config({ path: ".env" });
 
@@ -12,7 +12,7 @@ const execFileAsync = promisify(execFile);
 
 const INPUT_DIR = "input";
 const TABLE_NAME = "circa_full_content";
-const BATCH_SIZE = 30;
+const BATCH_SIZE = 50;
 
 function getOutputDirectory(source) {
   const category = source.archive_category?.trim().toLowerCase() ?? "other";
