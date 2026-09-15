@@ -1,0 +1,21 @@
+.nav {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  padding: 24px var(--page-padding) 0;
+}
+
+.nav a {
+  color: var(--color-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  opacity: 0.7;
+}
+
+.nav a:hover {
+  opacity: 1;
+  color: var(--color-text);
+}
