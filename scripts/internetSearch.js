@@ -11,7 +11,10 @@ if (!supabaseUrl || !serviceRoleKey || !youtubeApiKey) {
   throw new Error("Missing Supabase credentials or YOUTUBE_API_KEY.");
 }
 
+console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
 console.log("RUNNING UPDATED INTERNET SEARCH SCRIPT");
+console.log("Today's Date: " + new Date().toString());
+console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -26,6 +29,8 @@ async function getSearchState(query) {
 
   return data;
 }
+
+const PUBLISHED_AFTER_OVERLAP_DAYS = 2;
 
 const SEARCH_QUERIES = [
   "Circa Waves",
@@ -153,7 +158,12 @@ async function getExistingSourceUrls() {
   return new Set(data.map((row) => row.normalised_source_url).filter(Boolean));
 }
 
-async function searchYouTube(query, maxPages = 3, startingPageToken = null) {
+async function searchYouTube(
+  query,
+  maxPages = 3,
+  startingPageToken = null,
+  publishedAfter = null,
+) {
   let pageToken = startingPageToken;
   const results = [];
 
@@ -168,6 +178,11 @@ async function searchYouTube(query, maxPages = 3, startingPageToken = null) {
 
     if (pageToken) {
       params.set("pageToken", pageToken);
+    }
+
+    if (publishedAfter) {
+      params.set("publishedAfter", publishedAfter);
+      params.set("order", "date");
     }
 
     const response = await fetch(
@@ -277,6 +292,7 @@ async function saveDiscovery(video, query, normalisedSourceUrl) {
 async function runDiscovery() {
   let addedCount = 0;
 
+  const runStartedAt = new Date().toISOString();
   const seenVideoIds = new Set();
   const existingSourceUrls = await getExistingSourceUrls();
 
@@ -291,20 +307,33 @@ async function runDiscovery() {
       // 1. Get saved pagination state for this query
       const state = await getSearchState(query);
 
-      if (state?.completed) {
-        console.log(`Search already completed: ${query}`);
-        continue;
+      // Backlog finished: only look for videos uploaded since the last run.
+      // Overlap by a couple of days because YouTube's search index lags uploads.
+      const isIncremental = Boolean(state?.completed);
+
+      let startingPageToken = null;
+      let publishedAfter = null;
+
+      if (isIncremental) {
+        const lastSearched = new Date(state.updated_at);
+        lastSearched.setUTCDate(
+          lastSearched.getUTCDate() - PUBLISHED_AFTER_OVERLAP_DAYS,
+        );
+        publishedAfter = lastSearched.toISOString();
+
+        console.log(`Backlog done, checking uploads since ${publishedAfter}`);
+      } else {
+        startingPageToken = state?.next_page_token ?? null;
+
+        console.log(`Starting from page ${(state?.pages_searched ?? 0) + 1}`);
       }
 
-      const startingPageToken = state?.next_page_token ?? null;
-
-      console.log(`Starting from page ${state?.pages_searched ?? 0 + 1}`);
-
-      // 2. Continue from saved page token
+      // 2. Continue from saved page token, or search recent uploads
       const { results: videos, nextPageToken } = await searchYouTube(
         query,
         3,
         startingPageToken,
+        publishedAfter,
       );
 
       console.log(`Found ${videos.length} results`);
@@ -346,16 +375,25 @@ async function runDiscovery() {
         }
       }
 
-      // 4. Save where this query got to
-      const previousPages = state?.pages_searched ?? 0;
+      // 4. Save where this query got to. updated_at marks the start of this
+      // run so the next incremental search picks up from here.
+      const nextState = isIncremental
+        ? { query, updated_at: runStartedAt }
+        : {
+            query,
+            next_page_token: nextPageToken,
+            pages_searched: (state?.pages_searched ?? 0) + 3,
+            completed: nextPageToken === null,
+            updated_at: runStartedAt,
+          };
 
-      await supabase.from("discovery_search_state").upsert({
-        query,
-        next_page_token: nextPageToken,
-        pages_searched: (state?.pages_searched ?? 0) + 3,
-        completed: nextPageToken === null,
-        updated_at: new Date().toISOString(),
-      });
+      const { error: stateError } = await supabase
+        .from("discovery_search_state")
+        .upsert(nextState, { onConflict: "query" });
+
+      if (stateError) {
+        throw stateError;
+      }
 
       console.log(`Saved search progress for: ${query}`);
     } catch (error) {

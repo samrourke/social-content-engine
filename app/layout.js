@@ -1,6 +1,9 @@
 import Link from "next/link";
 import styles from "./layout.module.css";
 import "./globals.css";
+import Nav from "../components/Nav/Nav";
+import MobileNav from "../components/Nav/MobileNav";
+import { sans, display } from "./fonts";
 
 export const metadata = {
   title: "Circa Waves Content Engine",
@@ -9,12 +12,14 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${sans.variable} ${display.variable}`}>
       <body>
-        <nav className={styles.nav}>
+        {/* <nav className={styles.nav}>
           <Link href="/">Content Review</Link>
           <Link href="/tiktok">TikTok Dashboard</Link>
-        </nav>
+        </nav> */}
+        <Nav />
+        <MobileNav />
         {children}
       </body>
     </html>

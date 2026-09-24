@@ -301,6 +301,7 @@ The script:
 7. Suggests a broad content type.
 8. Inserts genuinely new results into `content_discoveries`.
 9. Maintains pagination state through `discovery_search_state`.
+10. Once a query's backlog is `completed`, later runs only search for videos published since its `updated_at` (with a 2-day overlap), so new uploads keep coming through.
 
 Run with:
 

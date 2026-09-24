@@ -102,7 +102,7 @@ export default function DiscoveryReviewer({ initialDiscovery, initialCounts }) {
   return (
     <section className={styles.reviewer}>
       <header className={styles.progress}>
-        <h1 className={styles.progressTitle}>Content Review</h1>
+        {/* <h1 className={styles.progressTitle}>Content Review</h1> */}
 
         <p className={styles.progressRemaining}>
           {counts.pending} videos left to review

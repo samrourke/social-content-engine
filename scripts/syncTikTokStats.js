@@ -26,6 +26,11 @@ const tikTokUsername = process.env.TIKTOK_USERNAME;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
+console.log(`Syncing TikTok stats for @${tikTokUsername}...`);
+console.log("Today's Date: " + new Date().toString());
+console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
+
 if (!apifyToken || !tikTokUsername || !supabaseUrl || !serviceRoleKey) {
   throw new Error(
     "Missing APIFY_API_TOKEN, TIKTOK_USERNAME, or Supabase credentials.",
@@ -72,7 +77,9 @@ function extractVideoRows(items) {
       platform_video_id: String(item.id),
       post_date:
         item.createTimeISO ??
-        (item.createTime ? new Date(item.createTime * 1000).toISOString() : null),
+        (item.createTime
+          ? new Date(item.createTime * 1000).toISOString()
+          : null),
       caption: item.text ?? null,
       views: item.playCount ?? null,
       likes: item.diggCount ?? null,
@@ -87,12 +94,17 @@ function extractVideoRows(items) {
 
 async function upsertProfileSnapshot(snapshot) {
   if (!snapshot) {
-    console.log("No profile metadata found in scrape results — skipping snapshot.");
+    console.log(
+      "No profile metadata found in scrape results — skipping snapshot.",
+    );
     return;
   }
 
-  const { error } = await supabase.from("tiktok_profile_snapshots").insert(snapshot);
-  if (error) throw new Error(`Failed to insert profile snapshot: ${error.message}`);
+  const { error } = await supabase
+    .from("tiktok_profile_snapshots")
+    .insert(snapshot);
+  if (error)
+    throw new Error(`Failed to insert profile snapshot: ${error.message}`);
 
   console.log(
     `Profile snapshot recorded: ${snapshot.follower_count} followers, ${snapshot.video_count} videos.`,
@@ -112,21 +124,29 @@ async function upsertVideoRows(rows) {
     .select("platform_video_id")
     .in("platform_video_id", ids);
 
-  if (fetchError) throw new Error(`Failed to check existing videos: ${fetchError.message}`);
+  if (fetchError)
+    throw new Error(`Failed to check existing videos: ${fetchError.message}`);
 
-  const existingIds = new Set((existing ?? []).map((row) => row.platform_video_id));
+  const existingIds = new Set(
+    (existing ?? []).map((row) => row.platform_video_id),
+  );
   const rowsWithFirstScraped = rows.map((row) => ({
     ...row,
-    ...(existingIds.has(row.platform_video_id) ? {} : { first_scraped_at: row.last_scraped_at }),
+    ...(existingIds.has(row.platform_video_id)
+      ? {}
+      : { first_scraped_at: row.last_scraped_at }),
   }));
 
   const { error: upsertError } = await supabase
     .from("tiktok_videos")
     .upsert(rowsWithFirstScraped, { onConflict: "platform_video_id" });
 
-  if (upsertError) throw new Error(`Failed to upsert videos: ${upsertError.message}`);
+  if (upsertError)
+    throw new Error(`Failed to upsert videos: ${upsertError.message}`);
 
-  const inserted = rows.filter((row) => !existingIds.has(row.platform_video_id)).length;
+  const inserted = rows.filter(
+    (row) => !existingIds.has(row.platform_video_id),
+  ).length;
   const updated = rows.length - inserted;
   return { inserted, updated };
 }
@@ -146,7 +166,9 @@ async function main() {
   console.log("Sync summary:");
   console.log(`  Videos inserted: ${inserted}`);
   console.log(`  Videos updated:  ${updated}`);
-  console.log(`  Profile snapshot: ${profileSnapshot ? "recorded" : "skipped (no data)"}`);
+  console.log(
+    `  Profile snapshot: ${profileSnapshot ? "recorded" : "skipped (no data)"}`,
+  );
 }
 
 main().catch((err) => {

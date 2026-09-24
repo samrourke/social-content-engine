@@ -1,0 +1,450 @@
+
+/* --------------------------------------------------
+   Mobile / Tablet nav
+-------------------------------------------------- */
+
+
+  .mobileNav {
+    position: relative;
+    z-index: 1000;
+
+    display: none;
+    
+
+    --mobile-nav-accent: var(--foreground);
+  }
+
+  /* ------------------------------------------------
+     Persistent top bar
+  ------------------------------------------------ */
+
+  .navBar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 1002;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+
+    padding:
+      max(1rem, env(safe-area-inset-top))
+      clamp(1rem, 4vw, 2rem)
+      0;
+
+    pointer-events: none;
+  }
+
+  .brand,
+  .menuButton {
+    pointer-events: auto;
+  }
+
+  /* ------------------------------------------------
+     Mini logo
+  ------------------------------------------------ */
+
+  .brand {
+    display: flex;
+    flex-direction: column;
+
+    color: var(--background);
+
+    line-height: 0.72;
+    text-decoration: none;
+    text-transform: uppercase;
+
+    transform: rotate(-2deg);
+  }
+
+  .brandSolid,
+  .brandOutline {
+    font-size: clamp(1rem, 3vw, 1.35rem);
+
+    letter-spacing: -0.04em;
+  }
+
+  .brandSolid {
+    color: var(--mobile-nav-accent);
+    font-style: italic;
+  }
+
+  .brandOutline {
+    color: transparent;
+
+    -webkit-text-stroke: 0.6px var(--background);
+  }
+
+  /* ------------------------------------------------
+     Menu switch
+  ------------------------------------------------ */
+
+  .menuButton {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 0.7rem;
+
+    min-width: 6rem;
+
+    padding: 0.6rem 0.75rem;
+
+    color: var(--background);
+    background:var(--foreground);
+
+    font: inherit;
+    font-size: 0.7rem;
+
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+
+
+
+    border: 1px solid rgb(252 246 228 / 0.75);
+    border-bottom-width: 2px;
+    border-radius: 7px;
+
+    box-shadow:
+      inset 1px 1px 0 rgb(255 255 255 / 0.15),
+      0 3px 10px rgb(0 0 0 / 0.25);
+
+    cursor: pointer;
+  }
+
+  .menuButtonOpen {
+    background: var(--foreground);
+    color: var(--background);
+
+    border-color: var(--background);
+  }
+
+  
+
+  .menuIcon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    width: 1rem;
+
+    font-size: 1.25rem;
+    line-height: 0.7;
+  }
+
+  /* ------------------------------------------------
+     Full-screen menu
+  ------------------------------------------------ */
+
+  .menu {
+    position: fixed;
+    inset: 0;
+    z-index: 1001;
+
+    visibility: hidden;
+
+    overflow: hidden;
+
+    background: var(--foreground);
+
+    opacity: 0;
+
+    transform: translateY(-1.5rem);
+
+    transition:
+      opacity 300ms ease,
+      transform 400ms cubic-bezier(0.76, 0, 0.24, 1),
+      visibility 0s linear 400ms;
+  }
+
+  
+
+  .menuOpen {
+    visibility: visible;
+
+    opacity: 1;
+
+    transform: translateY(0);
+
+    transition:
+      opacity 300ms ease,
+      transform 400ms cubic-bezier(0.76, 0, 0.24, 1);
+  }
+
+  .menuInner {
+
+    position: relative;
+    z-index: 1;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+   justify-content: center;
+
+    width: 100%;
+    height: 100%;
+
+    padding:
+      clamp(6rem, 12vh, 8rem)
+      clamp(1.25rem, 4vw, 3rem)
+      max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .nav{width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+ 
+  }
+
+
+  /* ------------------------------------------------
+     Links
+  ------------------------------------------------ */
+
+  .navList {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap:5%;
+
+    margin: 0;
+    padding: 0;
+
+    list-style: none;
+    
+  }
+
+
+
+  .navItem a {
+
+
+    padding: clamp(0.75rem, 2.5vh, 1.3rem) 0;
+
+    color: var(--background);
+
+    text-decoration: none;
+    
+  }
+
+  .number {
+    align-self: start;
+
+    padding-top: 0.3rem;
+
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+
+    opacity: 0.5;
+  }
+
+  .linkText {
+    font-size: clamp(3.1rem, 11vw, 6.5rem);
+    line-height: 0.82;
+font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: -0.045em;
+
+    color: transparent;
+
+    -webkit-text-stroke: 1px var(--background);
+
+    transition:
+      color 180ms ease,
+      -webkit-text-stroke-color 180ms ease,
+      transform 250ms ease;
+  }
+
+  .arrow {
+    font-size: clamp(1.5rem, 4vw, 2.25rem);
+
+    opacity: 0.35;
+
+    transition:
+      opacity 180ms ease,
+      transform 250ms ease;
+  }
+
+  /* ------------------------------------------------
+     Active section
+  ------------------------------------------------ */
+
+  .active .linkText {
+    color: var(--backgroud);
+
+    -webkit-text-stroke-color: var(--mobile-nav-accent);
+  }
+
+  .active .number {
+    color: var(--mobile-nav-accent);
+
+    opacity: 1;
+  }
+
+  .active .arrow {
+    color: var(--mobile-nav-accent);
+
+    opacity: 1;
+  }
+
+  /* ------------------------------------------------
+     Hover for tablets / pointer devices
+  ------------------------------------------------ */
+
+  @media (hover: hover) {
+    .navItem a:hover .linkText {
+      color: var(--background);
+
+      transform: translateX(0.4rem);
+    }
+
+    .navItem a:hover .arrow {
+      opacity: 1;
+
+      transform: translate(0.2rem, 0.2rem);
+    }
+
+    .menuButton:hover {
+      background-color: var(--background);
+      color:var(--foreground);
+    }
+
+    .menuButtonOpen:hover {
+      background-color: var(--background);
+      color:var(--foreground);
+    }
+  }
+
+  /* ------------------------------------------------
+     Footer
+  ------------------------------------------------ */
+
+  .menuFooter {
+    position: absolute;
+    bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+
+    gap: 1rem;
+
+    padding-top: 1rem;
+
+    color: var(--background);
+
+    font-size: clamp(0.5rem, 1.5vw, 0.65rem);
+    line-height: 1.4;
+
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+
+    border-top: 1px solid var(--background);
+
+    opacity: 1;
+
+  }
+
+
+  @media (min-width: 1025px) {
+
+   
+  .navBar {
+    padding:
+      2rem
+      clamp(2rem, 4vw, 4rem)
+      0;
+  }
+
+  .menuButton {
+    min-width: 4rem;
+    padding: 0.7rem 0.9rem;
+
+    font-size: 0.75rem;
+  }
+
+  .menuInner {
+    padding:
+      clamp(7rem, 12vh, 10rem)
+      clamp(3rem, 7vw, 8rem)
+      2.5rem;
+  }
+
+  .navItem a {
+    grid-template-columns: 4rem minmax(0, 1fr) auto;
+
+    padding: clamp(0.8rem, 1.8vh, 1.5rem) 0;
+  }
+
+  .linkText {
+    font-size: clamp(5rem, 9vw, 9rem);
+  }
+
+  .number {
+    font-size: 0.7rem;
+  }
+
+  .arrow {
+    font-size: clamp(2rem, 3vw, 3rem);
+  }
+
+  .menuFooter {
+    font-size: 0.65rem;
+  }
+}
+
+@media(max-width: 1024px) {
+    .mobileNav {
+        display: block;
+    }
+}
+
+
+/* --------------------------------------------------
+   Small mobile
+-------------------------------------------------- */
+
+@media (max-width: 480px) {
+.menuButton{
+    min-width: fit-content
+}
+    
+  .menuInner {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .menuTitle{
+    display: none;
+  }
+
+  .navItem a {
+    grid-template-columns: 1.8rem minmax(0, 1fr) auto;
+  }
+
+  .linkText {
+    font-size: clamp(2.75rem, 13vw, 4rem);
+
+    -webkit-text-stroke-width: 0.8px;
+  }
+
+  .menuFooter {
+    flex-direction: column;
+
+    gap: 0.35rem;
+  }
+}
+
+/* --------------------------------------------------
+   Reduced motion
+-------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .menu,
+  .linkText,
+  .arrow {
+    transition: none;
+  }
+}

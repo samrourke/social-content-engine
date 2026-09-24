@@ -13,7 +13,8 @@
 
   /* Semantic colours */
 
-  --color-background: #dad7cd;
+  --background: #dad7cd;
+  --foreground: #344e41;
   --color-surface: #e4e1d8;
   --color-surface-muted: #cdd1bc;
 
@@ -143,6 +144,8 @@ button {
 
 a {
   color: inherit;
+  text-decoration: none;
+  font-family: var(--font-sans);
 }
 
 p,
@@ -153,6 +156,7 @@ h4,
 h5,
 h6 {
   margin-top: 0;
+  font-family: var(--font-display);
 }
 
 h1,
