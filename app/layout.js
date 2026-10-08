@@ -12,7 +12,11 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${sans.variable} ${display.variable}`}>
+    <html
+      lang="en"
+      className={`${sans.variable} ${display.variable}`}
+      data-scroll-behavior="smooth"
+    >
       <body>
         {/* <nav className={styles.nav}>
           <Link href="/">Content Review</Link>
