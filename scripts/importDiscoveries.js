@@ -10,6 +10,12 @@ const supabase = createClient(
 
 const DRY_RUN = false; // Set to true to prevent actual inserts, for testing
 
+// Review tables to import approved discoveries from.
+const DISCOVERY_SOURCES = [
+  { table: "content_discoveries", platform: "youtube" },
+  { table: "instagram_discoveries", platform: "instagram" },
+];
+
 async function getExistingUrls() {
   const { data, error } = await supabase
     .from("circa_full_content")
@@ -23,22 +29,39 @@ async function getExistingUrls() {
 }
 
 async function getApprovedDiscoveries() {
-  const { data, error } = await supabase
-    .from("content_discoveries")
-    .select("*")
-    .eq("review_status", "approved")
-    .is("imported_at", null);
+  const discoveries = [];
 
-  if (error) {
-    throw error;
+  for (const { table, platform } of DISCOVERY_SOURCES) {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .eq("review_status", "approved")
+      .is("imported_at", null);
+
+    if (error) {
+      throw error;
+    }
+
+    console.log(`${data.length} approved in ${table}`);
+
+    // Remember where each discovery came from so it can be marked imported there
+    discoveries.push(
+      ...data.map((discovery) => ({
+        ...discovery,
+        platform: discovery.platform ?? platform,
+        sourceTable: table,
+      })),
+    );
   }
 
-  return data;
+  return discoveries;
 }
 
 function discoveryToFullContent(discovery) {
   return {
     title: discovery.title,
+
+    platform: discovery.platform,
 
     source_url: discovery.source_url,
 
@@ -46,9 +69,14 @@ function discoveryToFullContent(discovery) {
 
     source_location: null,
 
+    source_date: discovery.published_at?.slice(0, 10) ?? null,
+
     description: discovery.description,
 
     archive_category: discovery.archive_category,
+
+    // Instagram carousels only: which slides to download (null = every video)
+    carousel_slides: discovery.carousel_slides ?? null,
 
     processing_status: "pending",
 
@@ -98,7 +126,7 @@ async function importDiscoveries() {
     console.log("\nDUPLICATES:");
 
     for (const duplicate of duplicates) {
-      console.log(`- ${duplicate.title}`);
+      console.log(`- [${duplicate.platform}] ${duplicate.title}`);
     }
   }
 
@@ -131,21 +159,31 @@ async function importDiscoveries() {
 
   console.log(`\nSuccessfully imported ${data.length} discoveries.`);
 
-  // Mark the discoveries we just imported
-  const importedDiscoveryIds = newDiscoveries.map((discovery) => discovery.id);
+  // Mark the discoveries we just imported, in the table each one came from
+  const importedAt = new Date().toISOString();
 
-  const { error: markImportedError } = await supabase
-    .from("content_discoveries")
-    .update({
-      imported_at: new Date().toISOString(),
-    })
-    .in("id", importedDiscoveryIds);
+  for (const { table } of DISCOVERY_SOURCES) {
+    const importedDiscoveryIds = newDiscoveries
+      .filter((discovery) => discovery.sourceTable === table)
+      .map((discovery) => discovery.id);
 
-  if (markImportedError) {
-    throw markImportedError;
+    if (importedDiscoveryIds.length === 0) continue;
+
+    const { error: markImportedError } = await supabase
+      .from(table)
+      .update({
+        imported_at: importedAt,
+      })
+      .in("id", importedDiscoveryIds);
+
+    if (markImportedError) {
+      throw markImportedError;
+    }
+
+    console.log(
+      `Marked ${importedDiscoveryIds.length} discoveries in ${table} as imported.`,
+    );
   }
-
-  console.log(`Marked ${importedDiscoveryIds.length} discoveries as imported.`);
 }
 
 importDiscoveries().catch((error) => {

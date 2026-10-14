@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import fs from "fs/promises";
 import path from "path";
 import { execFile } from "child_process";
-import { promisify } from "util";
+import { promisify, parseArgs } from "util";
 import { CATEGORY_DIRECTORIES } from "../config/archiveCategories.js";
 
 dotenv.config({ path: ".env" });
@@ -13,6 +13,12 @@ const execFileAsync = promisify(execFile);
 const INPUT_DIR = "input";
 const TABLE_NAME = "circa_full_content";
 const BATCH_SIZE = 50;
+
+// Optional: node scripts/downloadContent.js --platform instagram
+// downloads only that platform's queue.
+const { values: args } = parseArgs({
+  options: { platform: { type: "string" } },
+});
 
 function getOutputDirectory(source) {
   const category = source.archive_category?.trim().toLowerCase() ?? "other";
@@ -80,7 +86,7 @@ async function updateSource(id, values) {
 }
 
 async function getPendingSources() {
-  const { data, error } = await supabase
+  let query = supabase
     .from(TABLE_NAME)
     .select(
       `
@@ -88,6 +94,7 @@ async function getPendingSources() {
         title,
         source_url,
         archive_category,
+        carousel_slides,
         downloaded_filename,
         download_status
       `,
@@ -96,11 +103,49 @@ async function getPendingSources() {
     .not("source_url", "is", null)
     .limit(BATCH_SIZE);
 
+  if (args.platform) {
+    query = query.eq("platform", args.platform);
+  }
+
+  const { data, error } = await query;
+
   if (error) {
     throw new Error(`Could not load download queue: ${error.message}`);
   }
 
   return data ?? [];
+}
+
+function isInstagramUrl(url) {
+  return /^https?:\/\/(www\.)?instagram\.com\//i.test(url);
+}
+
+/*
+ * Instagram carousels download as a playlist, one file per video slide.
+ * Photo slides make yt-dlp report errors, which are skipped; yt-dlp then exits
+ * non-zero even though the videos downloaded, so its output is still used and
+ * the files are checked below.
+ */
+async function runYtDlp(args, allowPartialFailure) {
+  try {
+    return await execFileAsync("yt-dlp", args, {
+      maxBuffer: 1024 * 1024 * 20,
+    });
+  } catch (error) {
+    if (allowPartialFailure && error.stdout?.trim()) {
+      return { stdout: error.stdout, stderr: error.stderr };
+    }
+
+    throw error;
+  }
+}
+
+async function findExistingDownloads(outputDirectory, sourceId) {
+  const entries = await fs.readdir(outputDirectory).catch(() => []);
+
+  return entries
+    .filter((name) => name.endsWith(`-${sourceId}.mp4`))
+    .map((name) => path.join(outputDirectory, name));
 }
 
 async function downloadVideo(source) {
@@ -120,21 +165,39 @@ async function downloadVideo(source) {
    * videos have the same title.
    */
   const stem = `${safeTitle}-${source.id}`;
+  const isInstagram = isInstagramUrl(sourceUrl);
 
-  const outputTemplate = path.join(outputDirectory, `${stem}.%(ext)s`);
+  /*
+   * Carousel videos get their slide number before the ID, e.g.
+   * title-slide17-<id>.mp4, so removeOrphanedDownloads.js still finds the ID
+   * at the end of the filename. Single videos keep title-<id>.mp4.
+   */
+  const outputTemplate = isInstagram
+    ? path.join(
+        outputDirectory,
+        `${safeTitle}%(playlist_index&-slide{}|)s-${source.id}.%(ext)s`,
+      )
+    : path.join(outputDirectory, `${stem}.%(ext)s`);
   const expectedOutputPath = path.join(outputDirectory, `${stem}.mp4`);
 
-  if (await fileExists(expectedOutputPath)) {
-    console.log(`[Already downloaded] ${expectedOutputPath}`);
+  const existingDownloads = await findExistingDownloads(
+    outputDirectory,
+    source.id,
+  );
+
+  if (existingDownloads.length > 0) {
+    console.log(`[Already downloaded] ${existingDownloads.join(", ")}`);
 
     await updateSource(source.id, {
       download_status: "downloaded",
-      downloaded_filename: path.relative(INPUT_DIR, expectedOutputPath),
+      downloaded_filename: existingDownloads
+        .map((filePath) => path.relative(INPUT_DIR, filePath))
+        .join(", "),
       downloaded_at: new Date().toISOString(),
       download_error: null,
     });
 
-    return expectedOutputPath;
+    return existingDownloads;
   }
 
   await updateSource(source.id, {
@@ -147,8 +210,21 @@ async function downloadVideo(source) {
   );
   console.log(sourceUrl);
 
+  const playlistArgs = isInstagram
+    ? [
+        "--ignore-errors",
+        ...(source.carousel_slides?.length
+          ? ["--playlist-items", source.carousel_slides.join(",")]
+          : []),
+      ]
+    : ["--no-playlist"];
+
+  if (source.carousel_slides?.length) {
+    console.log(`Carousel slides: ${source.carousel_slides.join(", ")}`);
+  }
+
   const args = [
-    "--no-playlist",
+    ...playlistArgs,
     "--newline",
 
     "--cookies-from-browser",
@@ -169,9 +245,7 @@ async function downloadVideo(source) {
     sourceUrl,
   ];
 
-  const { stdout, stderr } = await execFileAsync("yt-dlp", args, {
-    maxBuffer: 1024 * 1024 * 20,
-  });
+  const { stdout, stderr } = await runYtDlp(args, isInstagram);
 
   if (stderr?.trim()) {
     console.log(stderr.trim());
@@ -183,26 +257,34 @@ async function downloadVideo(source) {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  const reportedOutputPath = outputLines.at(-1);
+  // One reported path per downloaded video (several for a carousel)
+  const finalPaths = [];
 
-  const finalPath =
-    reportedOutputPath && (await fileExists(reportedOutputPath))
-      ? reportedOutputPath
-      : expectedOutputPath;
+  for (const line of outputLines) {
+    if (line.endsWith(".mp4") && (await fileExists(line))) {
+      finalPaths.push(line);
+    }
+  }
 
-  if (!(await fileExists(finalPath))) {
+  if (finalPaths.length === 0 && (await fileExists(expectedOutputPath))) {
+    finalPaths.push(expectedOutputPath);
+  }
+
+  if (finalPaths.length === 0) {
     throw new Error(
-      `yt-dlp finished but the expected output file was not found: ${finalPath}`,
+      `yt-dlp finished but the expected output file was not found: ${expectedOutputPath}`,
     );
   }
 
   /*
    * Store the path relative to input, for example:
    * interviews/video-title-id.mp4
-   * professional-live/video-title-id.mp4
+   * fan-live/video-title-slide17-id.mp4, fan-live/video-title-slide19-id.mp4
    */
 
-  const storedFilename = path.relative(INPUT_DIR, finalPath);
+  const storedFilename = finalPaths
+    .map((filePath) => path.relative(INPUT_DIR, filePath))
+    .join(", ");
 
   await updateSource(source.id, {
     download_status: "downloaded",
@@ -211,9 +293,11 @@ async function downloadVideo(source) {
     download_error: null,
   });
 
-  console.log(`[Downloaded] ${finalPath}`);
+  for (const finalPath of finalPaths) {
+    console.log(`[Downloaded] ${finalPath}`);
+  }
 
-  return finalPath;
+  return finalPaths;
 }
 
 export async function downloadContent() {

@@ -26,10 +26,19 @@ const tikTokUsername = process.env.TIKTOK_USERNAME;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+const { error: dbCheck } = await supabase
+  .from("tiktok_videos")
+  .select("*")
+  .limit(1);
+if (dbCheck)
+  throw new Error(`Supabase unreachable, skipping scrape: ${dbCheck.message}`);
+
 console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
 console.log(`Syncing TikTok stats for @${tikTokUsername}...`);
 console.log("Today's Date: " + new Date().toString());
 console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
+console.log("");
+console.log("");
 
 if (!apifyToken || !tikTokUsername || !supabaseUrl || !serviceRoleKey) {
   throw new Error(

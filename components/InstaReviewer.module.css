@@ -1,0 +1,343 @@
+.reviewer {
+  width: min(1400px, calc(100% - 48px));
+  margin: 0 auto;
+  padding-top: 8rem;
+  padding-bottom: 4rem;
+}
+
+/* ---------------------------
+   Progress
+---------------------------- */
+
+.progress {
+  width: min(800px, 100%);
+  margin: 0 auto 64px;
+  text-align: center;
+}
+
+.progressRemaining {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+}
+
+.progressStats {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  opacity: 0.96;
+  font-family: var(--font-sans);
+}
+
+.progressFiltered {
+  margin: 0 0 24px;
+  font-size: 0.875rem;
+  opacity: 0.7;
+  font-family: var(--font-sans);
+}
+
+.progressDetails {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  font-family: var(--font-sans);
+}
+
+.progressBar {
+  display: block;
+  width: 100%;
+  height: 22px;
+  border-radius: 5px;
+  border: 2px solid var(--background);
+}
+
+/* ---------------------------
+   Main layout
+---------------------------- */
+
+.reviewLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(320px, 1fr);
+  gap: clamp(32px, 5vw, 80px);
+  align-items: start;
+}
+
+/* ---------------------------
+   Media
+---------------------------- */
+
+.mediaColumn {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Instagram posts are portrait, so the embed is narrow and tall */
+.embedWrapper {
+  width: min(480px, 100%);
+  height: 760px;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.embed {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ---------------------------
+   Information
+---------------------------- */
+
+.infoColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  min-width: 0;
+}
+
+.metadata {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.channel {
+  margin: 0 0 4px;
+  color: inherit;
+  font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.1;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.channel:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.date {
+  margin: 0;
+  font-size: 0.875rem;
+  opacity: 0.6;
+}
+
+.caption {
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 20px 0 0;
+  padding-right: 8px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.instagramLink {
+  display: inline-block;
+  margin-top: 24px;
+  color: inherit;
+  font-size: 0.875rem;
+  text-underline-offset: 4px;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+  margin-top: 32px;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.detail span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.5;
+}
+
+/* ---------------------------
+   Review actions
+---------------------------- */
+
+.actions {
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.slidePicker {
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.slideLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.slideInput {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 2px solid var(--color-surface);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.slideInput:focus {
+  outline: 2px solid var(--color-sage);
+  outline-offset: 2px;
+}
+
+.slideInputInvalid {
+  border-color: rgb(194, 35, 35);
+}
+
+.slideHint {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
+.categoryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.actionLabel {
+  margin: 0 0 12px;
+  font-size: 2rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.categoryButton,
+.rejectButton,
+.undoButton {
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 2px solid var(--color-surface);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-deep-green);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+}
+
+.categoryButton:hover {
+  background: var(--color-fern);
+  color: #fff;
+}
+
+.rejectButton {
+  width: 80%;
+  margin-top: 24px;
+}
+
+.rejectButton:hover {
+  background: rgb(194, 35, 35);
+  color: #fff;
+}
+
+.undoButton {
+  width: 80%;
+  margin-top: 24px;
+}
+
+.undoButton:hover:not(:disabled) {
+  background: var(--color-fern);
+  color: #fff;
+}
+
+.undoButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---------------------------
+   Empty state
+---------------------------- */
+
+.emptyState {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+/* ---------------------------
+   Responsive
+---------------------------- */
+
+@media (max-width: 800px) {
+  .reviewer {
+    width: min(100% - 32px, 700px);
+    padding-top: 8rem;
+  }
+
+  .progress {
+    margin-bottom: 40px;
+  }
+
+  .reviewLayout {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .embedWrapper {
+    height: 640px;
+  }
+
+  .infoColumn {
+    gap: 32px;
+  }
+}
+
+@media (max-width: 500px) {
+  .categoryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .details {
+    grid-template-columns: 1fr;
+  }
+}

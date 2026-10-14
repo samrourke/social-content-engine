@@ -159,7 +159,7 @@ export default function DiscoveryReviewer({ initialDiscovery, initialCounts }) {
               <p className={styles.channel}>{discovery.channel_name}</p>
 
               <p className={styles.date}>
-                {new Date(discovery.published_at).toLocaleDateString()}
+                {new Date(discovery.published_at).toLocaleDateString("en-GB")}
               </p>
 
               <a
