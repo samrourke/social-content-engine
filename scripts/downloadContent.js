@@ -12,7 +12,7 @@ const execFileAsync = promisify(execFile);
 
 const INPUT_DIR = "input";
 const TABLE_NAME = "circa_full_content";
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 100;
 
 // Optional: node scripts/downloadContent.js --platform instagram
 // downloads only that platform's queue.
@@ -115,6 +115,23 @@ async function getPendingSources() {
 
   return data ?? [];
 }
+
+/*
+ * Both formats prefer H.264, because QuickTime can't play the AV1/VP9 video
+ * these sites often serve inside MP4.
+ *
+ * YouTube labels codecs, so ask for the highest-quality H.264 (avc1) directly
+ * and fall back to any codec if it isn't offered. There's no size cap: a
+ * height limit would cut portrait videos (Shorts are 1080x1920), and YouTube
+ * doesn't offer H.264 above 1080p anyway.
+ *
+ * Instagram's separate video streams are VP9, while its single-file formats
+ * (video + audio together) are H.264 but unlabelled, so prefer the single file.
+ */
+const YOUTUBE_FORMAT =
+  "bv*[vcodec^=avc1]+ba[ext=m4a]/bv*[vcodec^=avc1]+ba/bv*+ba/b";
+
+const INSTAGRAM_FORMAT = "b[ext=mp4]/bv*+ba/b";
 
 function isInstagramUrl(url) {
   return /^https?:\/\/(www\.)?instagram\.com\//i.test(url);
@@ -231,7 +248,7 @@ async function downloadVideo(source) {
     "firefox",
 
     "--format",
-    "bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080]/b",
+    isInstagram ? INSTAGRAM_FORMAT : YOUTUBE_FORMAT,
 
     "--merge-output-format",
     "mp4",
