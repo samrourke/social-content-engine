@@ -8,7 +8,11 @@
 // Run with:
 //   node scripts/instagramSearch.js                  # live run
 //   node scripts/instagramSearch.js --dry-run        # scrape + classify, no database reads/writes
-//   node scripts/instagramSearch.js --limit 10       # results per search (default 30)
+//   node scripts/instagramSearch.js --limit 10       # results per search (overrides each search's limit)
+//   node scripts/instagramSearch.js --backlog        # ignore the saved date cutoff to work back
+//                                                    # through older posts (repeats are still skipped)
+//   node scripts/instagramSearch.js --only @circawaves
+//                                                    # run a single search by its label
 //   node scripts/instagramSearch.js --from-file output/instagram/<file>.json
 //                                                    # replay a saved scrape, no Apify cost
 //   node scripts/instagramSearch.js --from-file <file> --rescore
@@ -40,13 +44,31 @@ const APIFY_ACTOR_ID = "apify/instagram-scraper";
 // Hashtag pages are ranked "top", not newest-first, so the date cutoff may not
 // stop the scraper early there — the run summary reports whether it did.
 // Profile feeds are date-ordered, so the cutoff works reliably for watched accounts.
+// limit        results per run (a --backlog run uses it as how far back to go)
+// resultsType  "posts" (default) or "reels". A hashtag's posts feed contains no
+//              reels, so hashtags need both. Hashtag reels come back in "top"
+//              order, not newest first, so expect repeats on those runs.
+// trusted      the band's own accounts: their posts aren't rejected for using a
+//              Circa Waves track, and they score higher
 const SEARCHES = [
   {
     label: "#circawaves",
     url: "https://www.instagram.com/explore/tags/circawaves/",
+    limit: 30,
   },
-  // Watched accounts, e.g.:
-  // { label: "@circawaves", url: "https://www.instagram.com/circawaves/" },
+  {
+    label: "#circawaves reels",
+    url: "https://www.instagram.com/explore/tags/circawaves/",
+    resultsType: "reels",
+    limit: 30,
+  },
+  // Watched accounts
+  {
+    label: "@circawaves",
+    url: "https://www.instagram.com/circawaves/",
+    limit: 30,
+    trusted: true,
+  },
 ];
 
 const DEFAULT_RESULTS_LIMIT = 30;
@@ -87,11 +109,17 @@ const { values: args } = parseArgs({
     limit: { type: "string" },
     "from-file": { type: "string" },
     rescore: { type: "boolean", default: false },
+    backlog: { type: "boolean", default: false },
+    only: { type: "string" },
   },
 });
 
 const dryRun = args["dry-run"];
-const resultsLimit = Number(args.limit ?? DEFAULT_RESULTS_LIMIT);
+const backlog = args.backlog;
+
+function getResultsLimit(search) {
+  return Number(args.limit ?? search.limit ?? DEFAULT_RESULTS_LIMIT);
+}
 const replayFile = args["from-file"];
 const rescore = args.rescore;
 
@@ -156,8 +184,8 @@ function getCutoff(state) {
 async function scrape(search, cutoff) {
   const input = {
     directUrls: [search.url],
-    resultsType: "posts",
-    resultsLimit,
+    resultsType: search.resultsType ?? "posts",
+    resultsLimit: getResultsLimit(search),
   };
 
   if (cutoff) input.onlyPostsNewerThan = cutoff;
@@ -171,7 +199,10 @@ function saveRawScrape(search, cutoff, items) {
   fs.mkdirSync(RAW_OUTPUT_DIR, { recursive: true });
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const slug = search.label.replace(/[^a-z0-9]+/gi, "");
+  const slug = search.label
+    .replace(/^#/, "tag-")
+    .replace(/^@/, "user-")
+    .replace(/[^a-z0-9-]+/gi, "-");
   const filePath = path.join(RAW_OUTPUT_DIR, `${stamp}-${slug}.json`);
 
   fs.writeFileSync(
@@ -234,7 +265,7 @@ function carouselVideoSlides(item) {
   );
 }
 
-function assessRelevance(item) {
+function assessRelevance(item, search) {
   const music = item.musicInfo ?? null;
   const usesLibraryTrack = music?.uses_original_audio === false;
   const keyword = findLiveKeyword(item);
@@ -246,7 +277,7 @@ function assessRelevance(item) {
 
   if (!mentionsBand(item)) return reject("No mention of Circa Waves");
 
-  if (usesLibraryTrack && !keyword) {
+  if (usesLibraryTrack && !keyword && !search.trusted) {
     return reject(`Background music only (${music.artist_name} - ${music.song_name})`);
   }
 
@@ -256,6 +287,7 @@ function assessRelevance(item) {
   if (BAND_PATTERN.test(item.caption ?? "")) score += 15;
   if (tagsBand(item)) score += 10;
   if ((item.videoPlayCount ?? 0) >= 1000) score += 10;
+  if (search.trusted) score += 30;
 
   return { status: "pending", reason: null, score: Math.min(score, 100), keyword };
 }
@@ -453,7 +485,7 @@ async function processItems(search, cutoff, items, seenThisRun, libraryUrls) {
             reason: `Slide ${parentCarousel.slide} of carousel ${parentCarousel.parent.shortCode}`,
             score: 0,
           }
-        : assessRelevance(item);
+        : assessRelevance(item, search);
 
     if (assessment.status === "pending") {
       const keyword = assessment.keyword ? `, "${assessment.keyword}"` : "";
@@ -495,7 +527,10 @@ async function main() {
 
   if (replayFile) {
     const saved = JSON.parse(fs.readFileSync(replayFile, "utf8"));
-    const search = saved.search ?? { label: `replay:${path.basename(replayFile)}` };
+    // Prefer the current config for this search so rule changes (e.g. trusted) apply
+    const search =
+      SEARCHES.find((candidate) => candidate.label === saved.search?.label) ??
+      saved.search ?? { label: `replay:${path.basename(replayFile)}` };
     const items = Array.isArray(saved) ? saved : saved.items;
 
     console.log(`\nReplaying ${items.length} items for ${search.label}`);
@@ -503,17 +538,26 @@ async function main() {
     return;
   }
 
-  for (const search of SEARCHES) {
+  const searches = args.only
+    ? SEARCHES.filter((search) => search.label === args.only)
+    : SEARCHES;
+
+  if (searches.length === 0) {
+    throw new Error(`No search labelled "${args.only}"`);
+  }
+
+  for (const search of searches) {
     console.log(`\nSearching: ${search.label}`);
 
     try {
       const state = dryRun ? null : await getSearchState(search);
-      const cutoff = getCutoff(state);
+      const cutoff = backlog ? null : getCutoff(state);
+      const limit = getResultsLimit(search);
 
       console.log(
         cutoff
-          ? `Only posts newer than ${cutoff} (last run ${state.updated_at})`
-          : `First run — no date cutoff, up to ${resultsLimit} results`,
+          ? `Only posts newer than ${cutoff} (last run ${state.updated_at}), up to ${limit} results`
+          : `${backlog ? "Backlog run" : "First run"} — no date cutoff, up to ${limit} results`,
       );
 
       const items = await scrape(search, cutoff);

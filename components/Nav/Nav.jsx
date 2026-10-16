@@ -18,7 +18,7 @@ export default function Nav() {
           style={{ height: "70px", width: "auto", margin: 0 }}
         />
       </Link>
-      <h1 className={styles.siteName}>{site.name}</h1>
+      {/* <h1 className={styles.siteName}>{site.name}</h1> */}
 
       <ul className={styles.navList}>
         {site.nav.map((link) => {
