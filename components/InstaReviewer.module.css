@@ -90,6 +90,43 @@
   border: 0;
 }
 
+/* Split carousel slides play the video file directly */
+.video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.videoExpired {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  padding: 32px;
+  color: #111;
+  line-height: 1.5;
+}
+
+.videoExpired p {
+  margin: 0;
+}
+
+.videoExpired code {
+  overflow-wrap: anywhere;
+}
+
+.slideBadge {
+  display: inline-block;
+  margin: 12px 0 0;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+
 /* ---------------------------
    Information
 ---------------------------- */
@@ -164,6 +201,10 @@
   border: 1px solid #ddd;
   border-radius: 6px;
   overflow-wrap: anywhere;
+}
+
+.detailWide {
+  grid-column: 1 / -1;
 }
 
 .detail span {

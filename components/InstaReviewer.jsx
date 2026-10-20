@@ -27,6 +27,50 @@ function describeAudio(discovery) {
   return "Unknown (carousel)";
 }
 
+// Instagram CDN links carry their expiry as a hex Unix timestamp in "oe".
+function videoLinkExpiry(url) {
+  const oe = url && new URL(url).searchParams.get("oe");
+  return oe ? new Date(parseInt(oe, 16) * 1000) : null;
+}
+
+const REFRESH_COMMAND = "node scripts/instagramSearch.js --refresh";
+
+// Plays a carousel slide's video file directly (Instagram's embed can't open at
+// a given slide). The link expires a few days after the scrape.
+function SlideVideo({ discovery }) {
+  const [failed, setFailed] = useState(false);
+  const expiry = videoLinkExpiry(discovery.video_url);
+  const expired = failed || (expiry && expiry < new Date());
+
+  if (expired) {
+    return (
+      <div className={styles.videoExpired}>
+        <p>This video link has expired.</p>
+        <p>
+          Renew the links with <code>{REFRESH_COMMAND}</code>, or watch it on
+          Instagram.
+        </p>
+        <a href={discovery.source_url} target="_blank" rel="noreferrer">
+          Open slide {discovery.slide_number ?? ""} on Instagram ↗
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <video
+      key={discovery.id}
+      className={styles.video}
+      src={discovery.video_url}
+      poster={discovery.thumbnail_url ?? undefined}
+      onError={() => setFailed(true)}
+      controls
+      autoPlay
+      playsInline
+    />
+  );
+}
+
 // Parses "17, 19" or "17-19" into [17, 19] / [17, 18, 19].
 // Returns null for blank input (keep every video) and false if anything is invalid.
 function parseSlides(input) {
@@ -55,7 +99,10 @@ export default function InstaReviewer({ initialDiscovery, initialCounts }) {
   const [lastReviewed, setLastReviewed] = useState(null);
   const [slidesInput, setSlidesInput] = useState("");
 
-  const isCarousel = Array.isArray(discovery?.carousel_video_slides);
+  // Slides of a split carousel are reviewed one at a time, so only a carousel
+  // reviewed as a whole needs the slide picker.
+  const isSlide = Boolean(discovery?.slide_number);
+  const isCarousel = Array.isArray(discovery?.carousel_video_slides) && !isSlide;
   const carouselSlides = isCarousel ? parseSlides(slidesInput) : null;
   const slidesInvalid = carouselSlides === false;
 
@@ -150,7 +197,7 @@ export default function InstaReviewer({ initialDiscovery, initialCounts }) {
     <section className={styles.reviewer}>
       <header className={styles.progress}>
         <p className={styles.progressRemaining}>
-          {counts.pending} Instagram posts left to review
+          {counts.pending} Instagram clips left to review
         </p>
 
         <p className={styles.progressStats}>
@@ -184,13 +231,17 @@ export default function InstaReviewer({ initialDiscovery, initialCounts }) {
           {/* Post */}
           <div className={styles.mediaColumn}>
             <div className={styles.embedWrapper}>
-              <iframe
-                key={discovery.id}
-                className={styles.embed}
-                src={`https://www.instagram.com/p/${discovery.platform_video_id}/embed/`}
-                title={discovery.title}
-                allowFullScreen
-              />
+              {discovery.video_url ? (
+                <SlideVideo key={discovery.id} discovery={discovery} />
+              ) : (
+                <iframe
+                  key={discovery.id}
+                  className={styles.embed}
+                  src={`https://www.instagram.com/p/${discovery.platform_video_id}/embed/`}
+                  title={discovery.title}
+                  allowFullScreen
+                />
+              )}
             </div>
           </div>
 
@@ -212,6 +263,14 @@ export default function InstaReviewer({ initialDiscovery, initialCounts }) {
                   : "No date"}
               </p>
 
+              {isSlide && (
+                <p className={styles.slideBadge}>
+                  Slide {discovery.slide_number}
+                  {discovery.carousel_video_slides?.length > 1 &&
+                    ` · video ${discovery.carousel_video_slides.indexOf(discovery.slide_number) + 1} of ${discovery.carousel_video_slides.length} in this carousel`}
+                </p>
+              )}
+
               {discovery.description && (
                 <p className={styles.caption}>{discovery.description}</p>
               )}
@@ -222,7 +281,7 @@ export default function InstaReviewer({ initialDiscovery, initialCounts }) {
                 target="_blank"
                 rel="noreferrer"
               >
-                Open on Instagram ↗
+                {isSlide ? `Open slide ${discovery.slide_number} on Instagram ↗` : "Open on Instagram ↗"}
               </a>
             </div>
 
@@ -295,6 +354,13 @@ export default function InstaReviewer({ initialDiscovery, initialCounts }) {
                   {discovery.discovery_score}
                 </p>
 
+                {discovery.score_reasons?.length > 0 && (
+                  <p className={`${styles.detail} ${styles.detailWide}`}>
+                    <span>Why this score</span>
+                    {discovery.score_reasons.join(" · ")}
+                  </p>
+                )}
+
                 <p className={styles.detail}>
                   <span>Audio</span>
                   {describeAudio(discovery)}
@@ -304,6 +370,13 @@ export default function InstaReviewer({ initialDiscovery, initialCounts }) {
                   <span>Found via</span>
                   {discovery.search_query ?? "—"}
                 </p>
+
+                {discovery.video_duration_seconds != null && (
+                  <p className={styles.detail}>
+                    <span>Length</span>
+                    {Math.round(discovery.video_duration_seconds)}s
+                  </p>
+                )}
 
                 <p className={styles.detail}>
                   <span>Plays</span>
