@@ -6,6 +6,9 @@ import InstaReviewer from "../../components/InstaReviewer";
 import styles from "./page.module.css";
 import "../globals.css";
 
+// Always query Supabase per request, never serve build-time data
+export const dynamic = "force-dynamic";
+
 export default async function InstagramReviewPage() {
   const [{ data: discovery, error }, counts] = await Promise.all([
     getNextInstagramDiscovery(),
