@@ -26,6 +26,9 @@ const tikTokUsername = process.env.TIKTOK_USERNAME;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+const apify = new ApifyClient({ token: apifyToken });
+const supabase = createClient(supabaseUrl, serviceRoleKey);
+
 const { error: dbCheck } = await supabase
   .from("tiktok_videos")
   .select("*")
@@ -45,9 +48,6 @@ if (!apifyToken || !tikTokUsername || !supabaseUrl || !serviceRoleKey) {
     "Missing APIFY_API_TOKEN, TIKTOK_USERNAME, or Supabase credentials.",
   );
 }
-
-const apify = new ApifyClient({ token: apifyToken });
-const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 async function fetchTikTokData(username) {
   const run = await apify.actor(APIFY_ACTOR_ID).call({
@@ -139,25 +139,35 @@ async function upsertVideoRows(rows) {
   const existingIds = new Set(
     (existing ?? []).map((row) => row.platform_video_id),
   );
-  const rowsWithFirstScraped = rows.map((row) => ({
-    ...row,
-    ...(existingIds.has(row.platform_video_id)
-      ? {}
-      : { first_scraped_at: row.last_scraped_at }),
-  }));
+  // New and existing rows go in separate requests: when rows in one request have
+  // different keys, supabase-js sends missing keys as null, which would null out
+  // first_scraped_at on the existing rows.
+  const newRows = rows
+    .filter((row) => !existingIds.has(row.platform_video_id))
+    .map((row) => ({ ...row, first_scraped_at: row.last_scraped_at }));
+  const existingRows = rows.filter((row) =>
+    existingIds.has(row.platform_video_id),
+  );
 
-  const { error: upsertError } = await supabase
-    .from("tiktok_videos")
-    .upsert(rowsWithFirstScraped, { onConflict: "platform_video_id" });
+  if (newRows.length > 0) {
+    const { error: insertError } = await supabase
+      .from("tiktok_videos")
+      .insert(newRows);
 
-  if (upsertError)
-    throw new Error(`Failed to upsert videos: ${upsertError.message}`);
+    if (insertError)
+      throw new Error(`Failed to insert videos: ${insertError.message}`);
+  }
 
-  const inserted = rows.filter(
-    (row) => !existingIds.has(row.platform_video_id),
-  ).length;
-  const updated = rows.length - inserted;
-  return { inserted, updated };
+  if (existingRows.length > 0) {
+    const { error: upsertError } = await supabase
+      .from("tiktok_videos")
+      .upsert(existingRows, { onConflict: "platform_video_id" });
+
+    if (upsertError)
+      throw new Error(`Failed to update videos: ${upsertError.message}`);
+  }
+
+  return { inserted: newRows.length, updated: existingRows.length };
 }
 
 async function main() {

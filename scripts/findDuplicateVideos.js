@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import fsSync from "fs";
 import path from "path";
 import crypto from "crypto";
-import { VIDEO_DIRECTORIES } from "../config/videoDirectories.js";
+import { VIDEO_DIRECTORIES } from "@/config/archiveCategories";
 
 const VIDEO_EXTENSIONS = new Set([
   ".mp4",

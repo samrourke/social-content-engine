@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import fs from "fs/promises";
 import path from "path";
-import { VIDEO_DIRECTORIES } from "../config/videoDirectories.js";
+import { VIDEO_DIRECTORIES } from "@/config/archiveCategories";
 
 dotenv.config({ path: ".env" });
 
