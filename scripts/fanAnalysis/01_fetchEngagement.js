@@ -29,6 +29,7 @@ dotenv.config({ path: ".env" });
 
 const POSTS_ACTOR_ID = "apify/instagram-scraper";
 const LIKES_ACTOR_ID = "iron-crawler/instagram-likes";
+const COMMENTS_ACTOR_ID = "apify/instagram-comment-scraper";
 
 const OUTPUT_DIR = "output/fan-analysis";
 
@@ -54,17 +55,23 @@ if (!apifyToken) throw new Error("Missing APIFY_API_TOKEN.");
 
 const apify = new ApifyClient({ token: apifyToken });
 
-// Fetches the most recent posts from a given Instagram username, sorted by date.
+//Helper function to run Apify actors and return output items:
 
-//actorID - apify/instagram-scraper
-//input - { directUrls: [profileUrl], resultsType: "posts", resultsLimit: count + allowance }
-//See https://console.apify.com/actors/shu8hvrXbJbY3Eb9W/input
+//actorID - the Apify actor ID to run
+//input - the input object to pass to the actor - see the actor's input schema for details
+//options - optional, e.g. { maxItems: 1000 } to limit output items - see actor docs for details
 
 async function runActor(actorId, input, options) {
   const run = await apify.actor(actorId).call(input, options);
   const { items } = await apify.dataset(run.defaultDatasetId).listItems();
   return items;
 }
+
+// Fetches the most recent posts from a given Instagram username (circawaves), sorted by date.
+
+//actorID - apify/instagram-scraper
+//input - { directUrls: [profileUrl], resultsType: "posts", resultsLimit: count + allowance }
+//See https://console.apify.com/actors/shu8hvrXbJbY3Eb9W/input
 
 async function fetchRecentPosts(username, count) {
   const items = await runActor(POSTS_ACTOR_ID, {
@@ -102,25 +109,43 @@ async function fetchLikers(post) {
   );
 }
 
+//Fetches the acounts that comments on that post
+//actorID - apify/instagram-comment-scraper
+
+async function fetchComments(post) {
+  return runActor(COMMENTS_ACTOR_ID, {});
+}
+
 async function main() {
   console.log(`Fetching the last ${POST_COUNT} posts from @${bandUsername}...`);
   const posts = await fetchRecentPosts(bandUsername, POST_COUNT);
 
   if (posts.length === 0) {
-    throw new Error("No posts returned — Instagram may have rate-limited the scraper, try again later.");
+    throw new Error(
+      "No posts returned — Instagram may have rate-limited the scraper, try again later.",
+    );
   }
 
   console.table(posts);
 
   // Step 2 test: likers for just the cheapest post, to check the actor's output
+
+  //find least liked post.
   const testPost = [...posts].sort((a, b) => a.likesCount - b.likesCount)[0];
-  console.log(`Fetching likers for ${testPost.url} (${testPost.likesCount} likes)...`);
+  console.log(
+    `Fetching likers for ${testPost.url} (${testPost.likesCount} likes)...`,
+  );
   const likers = await fetchLikers(testPost);
 
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-  fs.writeFileSync(`${OUTPUT_DIR}/test-likers.json`, JSON.stringify(likers, null, 2));
+  fs.writeFileSync(
+    `${OUTPUT_DIR}/test-likers.json`,
+    JSON.stringify(likers, null, 2),
+  );
 
-  console.log(`Got ${likers.length} likers (Instagram shows ${testPost.likesCount}).`);
+  console.log(
+    `Got ${likers.length} likers (Instagram shows ${testPost.likesCount}).`,
+  );
   console.log("First liker:", likers[0]);
   console.log(`Saved to ${OUTPUT_DIR}/test-likers.json`);
 }
