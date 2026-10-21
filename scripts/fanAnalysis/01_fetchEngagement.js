@@ -48,6 +48,8 @@ const POST_COUNT = 5;
 const PINNED_POST_ALLOWANCE = 3;
 const MAX_LIKERS_PER_POST = 1000; // caps the cost of each likes run
 
+const MAX_COMMENTS_PER_POST = 50; // caps the cost of each comments run
+
 const apifyToken = process.env.APIFY_API_TOKEN;
 const bandUsername = process.env.INSTAGRAM_USERNAME ?? "circawaves";
 
@@ -113,41 +115,91 @@ async function fetchLikers(post) {
 //actorID - apify/instagram-comment-scraper
 
 async function fetchComments(post) {
-  return runActor(COMMENTS_ACTOR_ID, {});
+  return runActor(COMMENTS_ACTOR_ID, {
+    directUrls: [post.url],
+    resultsLimit: MAX_COMMENTS_PER_POST,
+    includeNestedComments: true,
+  });
+}
+
+// Keeps only user data that later stages need from a liker or comment owner
+function slimUser(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    is_private: user.is_private,
+    is_verified: user.is_verified,
+  };
 }
 
 async function main() {
   console.log(`Fetching the last ${POST_COUNT} posts from @${bandUsername}...`);
+
+  //Fetch recent posts from the band, sorted by date, ignoring pinned posts
   const posts = await fetchRecentPosts(bandUsername, POST_COUNT);
 
+  //Throw error if no posts.
   if (posts.length === 0) {
     throw new Error(
       "No posts returned — Instagram may have rate-limited the scraper, try again later.",
     );
   }
 
-  console.table(posts);
+  //Array to store engagement data
 
-  // Step 2 test: likers for just the cheapest post, to check the actor's output
+  const engagement = [];
 
-  //find least liked post.
-  const testPost = [...posts].sort((a, b) => a.likesCount - b.likesCount)[0];
-  console.log(
-    `Fetching likers for ${testPost.url} (${testPost.likesCount} likes)...`,
-  );
-  const likers = await fetchLikers(testPost);
+  for (const [index, post] of posts.entries()) {
+    console.log(`[${index + 1}/${posts.length}] ${post.url}`);
 
+    //USe try/catch to handle errors so that an error in Post 4 does not crash the
+    //whole script and lose data for posts 1-3.
+
+    //map data to slimUser to keep only fields that are needed for
+    //later. Minimal data retention. No email, no phone, no address, no IP, etc.
+
+    try {
+      const likers = (await fetchLikers(post)).map(slimUser);
+
+      const postComments = (await fetchComments(post)).map((comment) => ({
+        id: comment.id,
+        timestamp: comment.timestamp,
+        owner: slimUser(comment.owner),
+      }));
+
+      engagement.push({ ...post, likers, comments: postComments });
+
+      console.log(
+        `  got ${likers.length}/${post.likesCount} likers, ${postComments.length}/${post.commentsCount} comments`,
+      );
+    } catch (err) {
+      console.error(`  failed, skipping: ${err.message}`);
+      engagement.push({
+        ...post,
+        error: err.message,
+        likers: [],
+        comments: [],
+      });
+    }
+  }
+
+  //Timestamp
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+  //Filepath for raw JSON output
+  const rawPath = `${OUTPUT_DIR}/ig-engagement-raw-${stamp}.json`;
+
+  //Write the raw engagement data to a JSON file in the output directory
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   fs.writeFileSync(
-    `${OUTPUT_DIR}/test-likers.json`,
-    JSON.stringify(likers, null, 2),
+    rawPath,
+    JSON.stringify(
+      { scrapedAt: new Date().toISOString(), bandUsername, posts: engagement },
+      null,
+      2,
+    ),
   );
-
-  console.log(
-    `Got ${likers.length} likers (Instagram shows ${testPost.likesCount}).`,
-  );
-  console.log("First liker:", likers[0]);
-  console.log(`Saved to ${OUTPUT_DIR}/test-likers.json`);
+  console.log(`Saved to ${rawPath}`);
 }
 
 main().catch((err) => {
