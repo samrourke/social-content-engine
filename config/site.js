@@ -40,5 +40,6 @@ export const site = {
     { name: "Content Review", href: "/", id: "review" },
     { name: "Instagram Review", href: "/instagram", id: "instagram" },
     { name: "Dashboard", href: "/tiktok", id: "dashboard" },
+    { name: "Calendar", href: "/calendar", id: "calendar" },
   ],
 };
