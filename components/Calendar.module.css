@@ -1,14 +1,33 @@
 .calendarContainer {
   width: min(1400px, calc(100% - 48px));
+  height: 100%;
   min-height: 100vh;
   margin: 8rem auto;
-padding: 2rem 3rem;
+ padding: 2rem 3rem;
   background-color: var(--background);
   color: var(--foreground);
-  border: 1px solid red;
+  border: 1px solid var(--color-sage);
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
+
+.calendarNav{
+    width:100%;
+    display:flex;
+    justify-content:flex-start;
+    gap:3rem;
+}
+
+.select{
+    width:fit-content;
+    min-width: 200px;
+    color: var(--foreground);
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+}
+
+
+
 
 .calendarHeader{
     width:100%;
@@ -17,4 +36,30 @@ padding: 2rem 3rem;
     display:flex;
     justify-content:space-between;
     border-bottom: 1px solid var(--foreground);
+}
+
+.calendarHeader,
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr)); /* minmax stops long text from widening a column */
+}
+
+.calendarCell {
+  min-height: 6rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 4px;
+}
+
+.outsideMonth {
+  opacity: 0.4;
+}
+
+.today{
+    border: 1.5px solid var(--color-sage);
+}
+
+.today time {
+  font-weight: 700;
+  text-decoration: underline;
 }
