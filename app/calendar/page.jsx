@@ -1,10 +1,15 @@
-import styles from "./page.module.css";
 import Calendar from "../../components/Calendar";
+import { getCalendarRows } from "../../lib/calendarSheet";
 
-export default function CalendarPage() {
+// Read the sheet on every request, so edits show up on refresh
+export const dynamic = "force-dynamic";
+
+export default async function CalendarPage() {
+  const rows = await getCalendarRows();
+
   return (
     <main>
-      <Calendar />
+      <Calendar rows={rows} />
     </main>
   );
 }

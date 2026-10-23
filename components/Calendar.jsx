@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   format,
   addMonths,
@@ -15,29 +15,43 @@ import {
   setMonth,
   setYear,
 } from "date-fns";
+
 import styles from "./Calendar.module.css";
 
 const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
 const MONTHS = Array.from({ length: 12 }, (_, i) =>
   format(new Date(2000, i, 1), "MMMM"),
 );
 const WEEK_OPTIONS = { weekStartsOn: 1 }; // Monday
 
-export default function Calendar() {
-  //returns 1st date of the month for the current view date
+export default function Calendar({ rows = [] }) {
+  //returns 1st date of the selected month for the current view date (defaults to current month)
   const [viewDate, setViewDate] = useState(() => startOfMonth(new Date()));
 
-  // Every day shown in the grid, including the days from the previous and
-  // next months that fill the first and last weeks
+  //Create object of every day in the month, including days from previous and
+  // next months that fill the first and last weeks. Using date-fns package
+
   const days = eachDayOfInterval({
     start: startOfWeek(startOfMonth(viewDate), WEEK_OPTIONS),
     end: endOfWeek(endOfMonth(viewDate), WEEK_OPTIONS),
+
+    //add 1 (WEEK_OPTIONS) to start and end days so that the calendar will start on Monday instead of Sunday
+    //remove Week_OPTIONS to display Sun - Sat instead
   });
 
-  // Centred on the viewed year, so the select always contains it
+  // Centered on the viewed year, so the select always contains it
   const viewYear = viewDate.getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => viewYear - 2 + i);
+
+  // Group posts by their date, e.g. { "04/12/2026": [post, post, post] }
+  //see Object.groupBy docs
+  //filter out empty rows that have a date but no contet or text
+
+  const newRows = rows.filter((row) => row.content);
+  const postsByDate = Object.groupBy(
+    rows.filter((row) => row.content || row.text),
+    (row) => row.date,
+  );
 
   return (
     <div className={styles.calendarContainer}>
@@ -101,10 +115,14 @@ export default function Calendar() {
 
           return (
             <div key={day.toISOString()} className={classes}>
-              <time dateTime={format(day, "yyyy-MM-dd")}>
+              <time dateTime={format(day, "dd/MM/yyyy")}>
                 {format(day, "d")}
               </time>
-              {/* posts for this day go here */}
+              {(postsByDate[format(day, "dd/MM/yyyy")] ?? []).map((post, i) => (
+                <div key={i} className={styles.post}>
+                  {post.content}
+                </div>
+              ))}
             </div>
           );
         })}
