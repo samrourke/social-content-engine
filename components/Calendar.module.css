@@ -1,4 +1,14 @@
+:root{
+  --color-awareness: #dbe7ff;
+  --color-engagement:#e3f4e1;
+  --color-conversion:#ffe1d6;
+  --color-community:#f1e3ff;
+}
+
+
+
 .calendarContainer {
+  position: relative;
   width: min(1400px, calc(100% - 48px));
   height: 100%;
   min-height: 100vh;
@@ -44,6 +54,8 @@
   grid-template-columns: repeat(7, minmax(0, 1fr)); /* minmax stops long text from widening a column */
 }
 
+
+
 .calendarCell {
   min-height: 7rem;
   padding: 0.25rem;
@@ -78,10 +90,37 @@
   text-overflow: ellipsis; /* long titles get "..." */
   cursor: pointer;
   background: #e9ecef;
-  height:22px;
+  color:var(--color-deep-green);
+
 }
 
-.post[data-purpose="awareness"]  { background: #dbe7ff; }
-.post[data-purpose="engagement"] { background: #e3f4e1; }
-.post[data-purpose="conversion"] { background: #ffe1d6; }
-.post[data-purpose="community"]  { background: #f1e3ff; }
+.post:hover{
+  color:var(--background)
+}
+
+.post[data-purpose="Awareness"], #awareness::before  {background:var(--color-awareness) }
+.post[data-purpose="Engagement"], #engagement::before { background: var(--color-engagement) }
+.post[data-purpose="Conversion"], #conversion::before { background: var(--color-conversion) }
+.post[data-purpose="Community"], #community::before  { background: var(--color-community) }
+
+.calendarIcons{
+  width: 100%;
+  display: flex;
+  gap:1rem;
+  position: absolute;
+  bottom:0;
+}
+
+.icon{
+  position: relative;
+}
+
+.icon::before{
+  content: '';
+  border-radius:50%;
+  height:20px;
+  aspect-ratio: 1/1;
+  position: absolute;
+  top:-20px;
+}
+
