@@ -28,6 +28,32 @@
     gap:3rem;
 }
 
+.monthNavBtn {
+  
+ 
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-sage);
+  color: var(--foreground);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.monthNavBtn:hover {
+  background: var(--color-fern);
+}
+
+.monthNavBtn:focus-visible {
+  outline: 2px solid var(--color-fern);
+  outline-offset: 2px;
+}
+
 .select{
     width:fit-content;
     min-width: 200px;

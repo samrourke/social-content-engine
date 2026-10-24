@@ -31,6 +31,8 @@ const WEEK_OPTIONS = { weekStartsOn: 1 }; // Monday
 
 export default function Calendar({ rows = [] }) {
   const [modalState, setModalState] = useState(false);
+  const [modalPost, setModalPost] = useState("null");
+  console.log(modalPost);
   //returns 1st date of the selected month for the current view date (defaults to current month)
   const [viewDate, setViewDate] = useState(() => startOfMonth(new Date()));
 
@@ -59,17 +61,25 @@ export default function Calendar({ rows = [] }) {
   //see Object.groupBy docs
   //filter out empty rows that have a date but no contet or text
 
-  const postsByDate = useMemo(() =>
-    Object.groupBy(
-      rows.filter((row) => row.content || row.text),
-      (row) => row.date,
-    ),
+  const postsByDate = useMemo(
+    () =>
+      Object.groupBy(
+        rows.filter((row) => row.content || row.text),
+        (row) => row.date,
+      ),
+    [rows],
   );
 
-  function handleModalOpen() {
-    console.log("modal open");
+  function handleModalOpen(selectedPost) {
+    setModalPost(selectedPost);
+
     setModalState((prev) => !prev);
     // document.body.style.overflow = "hidden";
+  }
+
+  function handleModalClose() {
+    setModalState(false);
+    // document.body.style.overflow = "auto";
   }
 
   return (
@@ -79,7 +89,12 @@ export default function Calendar({ rows = [] }) {
         <p>Today: {format(new Date(), "EEEE d MMMM yyyy")}</p>
 
         <div className={styles.calendarNav}>
-          <button onClick={() => setViewDate((d) => subMonths(d, 1))}>‹</button>
+          <button
+            className={styles.monthNavBtn}
+            onClick={() => setViewDate((d) => subMonths(d, 1))}
+          >
+            ‹
+          </button>
 
           <select
             className={`${styles.month} ${styles.select}`}
@@ -94,7 +109,12 @@ export default function Calendar({ rows = [] }) {
               </option>
             ))}
           </select>
-          <button onClick={() => setViewDate((d) => addMonths(d, 1))}>›</button>
+          <button
+            className={styles.monthNavBtn}
+            onClick={() => setViewDate((d) => addMonths(d, 1))}
+          >
+            ›
+          </button>
 
           <select
             className={`${styles.year} ${styles.select}`}
@@ -141,7 +161,7 @@ export default function Calendar({ rows = [] }) {
                 {(postsByDate[format(day, "dd/MM/yyyy")] ?? []).map(
                   (post, i) => (
                     <button
-                      onClick={() => handleModalOpen()}
+                      onClick={() => handleModalOpen(post)}
                       key={i}
                       className={styles.post}
                       data-purpose={post.purpose}
@@ -169,8 +189,9 @@ export default function Calendar({ rows = [] }) {
           </p>
         </div>
       </div>
-
-      <CalendarModal />
+      {modalState && (
+        <CalendarModal post={modalPost} onClose={handleModalClose} />
+      )}
     </>
   );
 }

@@ -18,11 +18,6 @@ export default function RootLayout({ children }) {
       data-scroll-behavior="smooth"
     >
       <body>
-        {/* <nav className={styles.nav}>
-          <Link href="/">Content Review</Link>
-          <Link href="/tiktok">TikTok Dashboard</Link>
-        </nav> */}
-        <Nav />
         <MobileNav />
         {children}
       </body>

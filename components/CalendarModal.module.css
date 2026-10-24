@@ -1,0 +1,167 @@
+.dialog {
+  width: min(640px, calc(100% - 32px));
+  max-height: 85vh;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--foreground);
+  box-shadow: 0 24px 48px rgba(52, 78, 65, 0.25);
+  overflow: hidden;
+}
+
+/* Only when open - a closed <dialog> must keep the browser's display: none */
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+/* the dimmed layer behind the modal */
+.dialog::backdrop {
+  background: rgba(52, 78, 65, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+/* ---------- Header: title, date, purpose, close ---------- */
+
+.header {
+  position: relative;
+  padding: var(--space-6) var(--space-6) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.title {
+  margin: 0 var(--space-7) var(--space-3) 0; /* right margin keeps clear of the close button */
+  font-size: var(--font-size-xl);
+  line-height: 1.2;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.pill {
+  margin-left: var(--space-2);
+  padding: 0.125rem 0.625rem;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  color: var(--color-deep-green);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+/* Same colours as the posts in the calendar grid */
+.pill[data-purpose="Awareness"] { background: var(--color-awareness); }
+.pill[data-purpose="Engagement"] { background: var(--color-engagement); }
+.pill[data-purpose="Conversion"] { background: var(--color-conversion); }
+.pill[data-purpose="Community"] { background: var(--color-community); }
+
+.close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--color-surface-muted);
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--color-fern);
+  outline-offset: 2px;
+}
+
+/* ---------- Body: the list of fields ---------- */
+
+.body {
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  overflow-y: auto; /* long posts scroll here, the header stays put */
+}
+
+.fields {
+  margin: 0;
+}
+
+/* One row per field: label on the left, value on the right */
+.field {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: var(--space-5);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.field:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.label {
+  padding-top: 0.15rem;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.value {
+  margin: 0;
+  line-height: var(--line-height-normal);
+  white-space: pre-wrap; /* keep the line breaks in TEXT/VO and TAGS */
+  overflow-wrap: anywhere; /* long URLs wrap instead of widening the modal */
+}
+
+.value a {
+  color: var(--color-fern);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.value a:hover {
+  color: var(--color-hunter);
+}
+
+.mono {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: var(--font-size-xs);
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Phones: stack label above value ---------- */
+
+@media (max-width: 600px) {
+  .header {
+    padding: var(--space-5) var(--space-5) var(--space-4);
+  }
+
+  .body {
+    padding: var(--space-4) var(--space-5) var(--space-5);
+  }
+
+  .field {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+}

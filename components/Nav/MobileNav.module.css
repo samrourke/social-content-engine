@@ -8,7 +8,7 @@
     position: relative;
     z-index: 1000;
 
-    display: none;
+   
     
 
     --mobile-nav-accent: var(--foreground);
@@ -61,7 +61,7 @@
 
   .brandSolid,
   .brandOutline {
-    font-size: clamp(1rem, 3vw, 1.35rem);
+    font-size: clamp(1rem, 2vw, 1.35rem);
 
     letter-spacing: -0.04em;
   }
@@ -209,7 +209,7 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap:5%;
+    gap:15%;
 
     margin: 0;
     padding: 0;
@@ -243,7 +243,7 @@
   }
 
   .linkText {
-    font-size: clamp(3.1rem, 11vw, 6.5rem);
+    font-size: clamp(3.1rem, 6vw, 6.5rem);
     line-height: 0.82;
 font-family: var(--font-display);
     text-transform: uppercase;
@@ -378,9 +378,7 @@ font-family: var(--font-display);
     padding: clamp(0.8rem, 1.8vh, 1.5rem) 0;
   }
 
-  .linkText {
-    font-size: clamp(5rem, 9vw, 9rem);
-  }
+
 
   .number {
     font-size: 0.7rem;
