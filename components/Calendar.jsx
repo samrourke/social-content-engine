@@ -14,11 +14,12 @@ import {
   isToday,
   setMonth,
   setYear,
+  add,
 } from "date-fns";
 
 import styles from "./Calendar.module.css";
 import CalendarModal from "./CalendarModal";
-import { addPost } from "@/app/calendar/actions";
+import AddEventModal from "./AddEventModal";
 
 //date-fns library for calculating days and weeks in the month
 
@@ -35,6 +36,8 @@ const calendarIcons = ["Awareness", "Engagement", "Conversion", "Community"];
 export default function Calendar({ rows = [] }) {
   const [modalState, setModalState] = useState(false);
   const [modalPost, setModalPost] = useState("null");
+
+  const [addEvent, setAddEvent] = useState(false);
 
   //returns 1st date of the selected month for the current view date (defaults to current month)
   const [viewDate, setViewDate] = useState(() => startOfMonth(new Date()));
@@ -77,47 +80,23 @@ export default function Calendar({ rows = [] }) {
     setModalPost(selectedPost);
 
     setModalState((prev) => !prev);
-    // document.body.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+  }
+
+  function addEventOpen() {
+    setAddEvent(true);
+    document.body.style.overflow = "hidden";
   }
 
   function handleModalClose() {
     setModalState(false);
-    // document.body.style.overflow = "auto";
+    document.body.style.overflow = "auto";
   }
 
-  const formInputFields = [
-    { name: "date", label: "Date", type: "date", required: true },
-    { name: "time", label: "Time", type: "time" },
-    {
-      name: "content",
-      label: "Content",
-      type: "text",
-      required: true,
-      placeholder: "e.g. Single announce",
-    },
-    { name: "text", label: "Text / VO", type: "text" },
-    {
-      name: "cta",
-      label: "CTA / Link / Sound",
-      type: "text",
-      placeholder: "https://...",
-    },
-    { name: "tags", label: "Tags", type: "text", placeholder: "@handle" },
-    {
-      name: "hashtags",
-      label: "Hashtags",
-      type: "text",
-      placeholder: "#newmusic",
-    },
-    {
-      name: "purpose",
-      label: "Purpose",
-      type: "select",
-      options: ["Awareness", "Engagement", "Conversion", "Community"],
-    },
-    { name: "niche", label: "Niche", type: "text" },
-    { name: "boostCode", label: "Code for boosting", type: "text" },
-  ];
+  function closeEventModal() {
+    setAddEvent(false);
+    document.body.style.overflow = "auto";
+  }
 
   return (
     <>
@@ -170,7 +149,7 @@ export default function Calendar({ rows = [] }) {
           <button onClick={() => setViewDate(startOfMonth(new Date()))}>
             Today
           </button>
-          <button onClick={() => handleModalOpen()}>Add +</button>
+          <button onClick={() => addEventOpen()}>Add +</button>
         </div>
 
         <div className={styles.calendarHeader}>
@@ -225,48 +204,11 @@ export default function Calendar({ rows = [] }) {
         </div>
       </div>
 
-      <form className={styles.form} action={addPost}>
-        <h1>Add New Social Post</h1>
-
-        {formInputFields.map((input) => {
-          const id = `post-${input.name}`;
-
-          return (
-            <div key={input.name} className={styles.formGroup}>
-              <label htmlFor={id}>{input.label}</label>
-
-              {input.type === "select" ? (
-                <select
-                  id={id}
-                  name={input.name}
-                  required={input.required}
-                  className={styles.formInput}
-                >
-                  <option value="">Choose...</option>
-                  {input.options.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  id={id}
-                  name={input.name}
-                  type={input.type}
-                  required={input.required}
-                  placeholder={input.placeholder}
-                  className={styles.formInput}
-                />
-              )}
-            </div>
-          );
-        })}
-
-        <button type="submit">Add post</button>
-      </form>
       {modalState && (
         <CalendarModal post={modalPost} onClose={handleModalClose} />
+      )}
+      {addEvent && (
+        <AddEventModal addEvent={addEvent} onClose={closeEventModal} />
       )}
     </>
   );

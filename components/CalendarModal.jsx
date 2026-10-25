@@ -51,50 +51,44 @@ export default function CalendarModal({ post, onClose }) {
   return (
     // onClose also fires when the user presses Escape
     <dialog ref={dialogRef} className={styles.dialog} onClose={onClose}>
-      {post && (
-        <>
-          <header className={styles.header}>
-            <h2 className={styles.title}>{post.content || post.text}</h2>
+      <>
+        <header className={styles.header}>
+          <h2 className={styles.title}>{post.content || post.text}</h2>
 
-            <div className={styles.meta}>
-              <span>{formatDate(post.date)}</span>
-              {post.time && <span>· {post.time}</span>}
-              {post.purpose && (
-                <span className={styles.pill} data-purpose={post.purpose}>
-                  {post.purpose}
-                </span>
-              )}
-            </div>
-
-            <button
-              className={styles.close}
-              onClick={onClose}
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </header>
-
-          <div className={styles.body}>
-            {fields.length > 0 ? (
-              <dl className={styles.fields}>
-                {fields.map((field) => (
-                  <div key={field.key} className={styles.field}>
-                    <dt className={styles.label}>{field.label}</dt>
-                    <dd
-                      className={`${styles.value} ${field.mono ? styles.mono : ""}`}
-                    >
-                      {withLinks(post[field.key])}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            ) : (
-              <p className={styles.empty}>No details added yet.</p>
+          <div className={styles.meta}>
+            <span>{formatDate(post.date)}</span>
+            {post.time && <span>· {post.time}</span>}
+            {post.purpose && (
+              <span className={styles.pill} data-purpose={post.purpose}>
+                {post.purpose}
+              </span>
             )}
           </div>
-        </>
-      )}
+
+          <button className={styles.close} onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </header>
+
+        <div className={styles.body}>
+          {fields.length > 0 ? (
+            <dl className={styles.fields}>
+              {fields.map((field) => (
+                <div key={field.key} className={styles.field}>
+                  <dt className={styles.label}>{field.label}</dt>
+                  <dd
+                    className={`${styles.value} ${field.mono ? styles.mono : ""}`}
+                  >
+                    {withLinks(post[field.key])}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p className={styles.empty}>No details added yet.</p>
+          )}
+        </div>
+      </>
     </dialog>
   );
 }
