@@ -5,6 +5,7 @@ import { getCalendarRows } from "../../lib/calendarSheet";
 export const dynamic = "force-dynamic";
 
 export default async function CalendarPage() {
+  //await the return of Calendar Rows
   const rows = await getCalendarRows();
 
   return (
