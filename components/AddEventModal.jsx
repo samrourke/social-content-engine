@@ -56,7 +56,12 @@ const formInputFields = [
     type: "select",
     options: ["Awareness", "Engagement", "Conversion", "Community"],
   },
-  { name: "niche", label: "Niche", type: "text", placeholder: "e.g. Gig-goers" },
+  {
+    name: "niche",
+    label: "Niche",
+    type: "text",
+    placeholder: "e.g. Gig-goers",
+  },
   { name: "boostCode", label: "Code for boosting", type: "text", wide: true },
 ];
 
@@ -91,7 +96,9 @@ export default function AddEventModal({ addEvent, onClose }) {
               >
                 <label htmlFor={id} className={styles.label}>
                   {input.label}
-                  {input.required && <span className={styles.required}> *</span>}
+                  {input.required && (
+                    <span className={styles.required}> *</span>
+                  )}
                 </label>
 
                 {input.type === "select" ? (
