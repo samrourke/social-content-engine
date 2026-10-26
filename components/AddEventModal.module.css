@@ -31,9 +31,10 @@
 }
 
 .title {
-  margin: 0 var(--space-7) 0 0; /* right margin keeps clear of the close button */
+  
   font-size: var(--font-size-xl);
   line-height: 1.2;
+  text-align: center;
 }
 
 .close {
@@ -73,6 +74,41 @@
   flex: 1;
 }
 
+.pending{
+  filter: blur(2px);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.formMessage{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0;
+  max-width: 80%;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.error, .success{
+  
+  font-size: var(--font-size-xl);
+  line-height: 1.2;
+  border:1px solid;
+  border-radius: 5px;
+  padding:0.5rem
+  
+}
+
+.error{
+  color:rgb(226, 64, 27);
+  border-color:rgb(226, 64, 27);
+  
+}
+.success{
+  color:var(--color-hunter);
+  border-color:var(--color-hunter);
+}
 /* Two columns of fields; `wide` fields span both */
 .fields {
   display: grid;

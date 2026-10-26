@@ -2,7 +2,7 @@
 
 import styles from "./AddEventModal.module.css";
 import { addPost } from "@/app/calendar/actions";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useActionState } from "react";
 
 // Every 15 minutes through the day: "00:00", "00:15" ... "23:45"
 const TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, i) => {
@@ -67,6 +67,7 @@ const formInputFields = [
 
 export default function AddEventModal({ addEvent, onClose }) {
   const dialogRef = useRef(null);
+  const [data, action, isPending] = useActionState(addPost, undefined);
 
   // Open or close the real <dialog> whenever the selected post changes
   useEffect(() => {
@@ -78,14 +79,24 @@ export default function AddEventModal({ addEvent, onClose }) {
   return (
     <dialog ref={dialogRef} className={styles.dialog} onClose={onClose}>
       <header className={styles.header}>
-        <h2 className={styles.title}>Add new social post</h2>
+        <h2 className={styles.title}>Add New Post</h2>
         <button className={styles.close} onClick={onClose} aria-label="Close">
           ×
         </button>
+        <div className={styles.formMessage}>
+          {data?.message && (
+            <p
+              className={`${styles.formMessage} ${styles[data.status]}`}
+              role="status"
+            >
+              {data.message}
+            </p>
+          )}
+        </div>
       </header>
 
-      <form className={styles.form} action={addPost}>
-        <div className={styles.fields}>
+      <form className={styles.form} action={action}>
+        <div className={`${styles.fields} ${isPending ? styles.pending : ""}`}>
           {formInputFields.map((input) => {
             const id = `post-${input.name}`;
 
@@ -143,8 +154,8 @@ export default function AddEventModal({ addEvent, onClose }) {
           <button type="button" className={styles.secondary} onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className={styles.primary}>
-            Add post
+          <button type="submit" className={styles.primary} disabled={isPending}>
+            {isPending ? "Saving..." : "Add Post"}
           </button>
         </footer>
       </form>
