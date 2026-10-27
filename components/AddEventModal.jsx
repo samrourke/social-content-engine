@@ -116,6 +116,7 @@ export default function AddEventModal({ addEvent, onClose }) {
                   <select
                     id={id}
                     name={input.name}
+                    defaultValue={data?.fieldData?.[input.name]}
                     required={input.required}
                     className={styles.formInput}
                   >
@@ -130,6 +131,7 @@ export default function AddEventModal({ addEvent, onClose }) {
                   <textarea
                     id={id}
                     name={input.name}
+                    defaultValue={data?.fieldData?.[input.name]}
                     required={input.required}
                     placeholder={input.placeholder}
                     rows={input.wide ? 4 : 2}
@@ -139,6 +141,7 @@ export default function AddEventModal({ addEvent, onClose }) {
                   <input
                     id={id}
                     name={input.name}
+                    defaultValue={data?.fieldData?.[input.name]}
                     type={input.type}
                     required={input.required}
                     placeholder={input.placeholder}
