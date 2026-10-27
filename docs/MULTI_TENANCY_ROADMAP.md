@@ -65,21 +65,21 @@ Each phase leaves the app working, so you can stop between phases. Circa Waves b
 
 ### Phase 0: Prepare (about half a day)
 
-- [ ] Create a branch: `git switch -c multi-tenancy`.
+- [x] Create a branch: `multi-tenancy-setup`.
 - [x] Back up the database: `backups/2026-10-27/` (`roles.sql`, `schema.sql`, `data.sql`, created with `npx supabase db dump --linked`). The folder is git-ignored.
 - [ ] Set up somewhere to test that isn't production: a second Supabase project, or local Supabase via `supabase start` (needs Docker).
-- [ ] Capture the current schema so migrations match reality:
-  ```bash
-  npx supabase db pull
-  ```
-  Commit the result as the baseline migration. It fills the gaps for `content_discoveries`, `circa_full_content` and `discovery_search_state`.
-- [ ] Remove the unused dependency: `npm uninstall next-auth`.
+- [x] Capture the current schema so migrations match reality: `supabase/migrations/20261027180837_remote_schema.sql`, created with `npx supabase db pull` and marked as applied in the remote migration history. The old hand-run files 002–006 are kept for reference in `supabase/legacy-migrations/`, which the CLI ignores.
+- [x] Remove the unused dependency: `npm uninstall next-auth`.
+
+From now on, schema changes go through `npx supabase migration new <name>` and then `npx supabase db push`, never the SQL Editor.
+
+The baseline includes an `ensure_rls` event trigger (function `rls_auto_enable`), which **automatically turns on RLS for every new table**. New tables are therefore locked to the service role until you add policies. That's a safe default, but expect an empty result, not an error, if you forget a policy.
 
 **Done when:** the migrations folder rebuilds the current database from scratch.
 
 ### Phase 1: Tenancy tables and `client_id` (1–2 days)
 
-New migration, `007_tenancy.sql`:
+New migration, created with `npx supabase migration new tenancy`:
 
 ```sql
 create table clients (
