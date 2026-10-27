@@ -14,7 +14,9 @@ The discovery and download pipeline (YouTube and Instagram search, review, archi
 | `next-auth` | Installed but never used | Remove it |
 | Database access | Every query goes through `lib/supabaseAdmin.js` (service-role key, which skips all security rules) | Client-facing pages switch to a user-scoped client, so Row Level Security (RLS) applies |
 | Tables | No `client_id` anywhere. `platform_video_id` is globally unique in `tiktok_videos` and `instagram_discoveries`. The table name `circa_full_content` contains the band's name | Add `client_id` to every table, make unique constraints per client, use a neutral table name |
-| Schema history | `content_discoveries`, `circa_full_content` and `discovery_search_state` aren't in `supabase/migrations/`, and there is no migration `001` | Capture the real schema before changing it |
+| Schema history | `content_discoveries`, `circa_full_content`, `discovery_search_state`, `content_sources` and `yt_content` aren't in `supabase/migrations/`, and there is no migration `001` | Capture the real schema before changing it |
+| Unused tables | `content_sources` (72 rows) and `yt_content` (112 rows) exist in the database, but no code in `app/`, `lib/` or `scripts/` reads them | Decide whether to keep them (add `client_id`) or drop them |
+| RLS | Already turned on for all 9 public tables, with no policies, so only the service role can read them today | Add policies that let members read their own client's rows (Phase 3) |
 | Routes | `/` (Content Review), `/instagram`, `/tiktok` (Dashboard), `/calendar` | Client pages move under `/[client]/…` and review pages under `/admin/…` |
 | Calendar | Google Sheet set by `CALENDAR_SHEET_ID` and `CALENDAR_SHEET_TAB` in env vars | Short term: a sheet ID per client. Long term: a Supabase table |
 | Fan Interests | Scripts in `scripts/fanAnalysis/` exist. The `fan_analysis` migration is an empty placeholder and there's no page yet | Build it tenant-aware from day one |
@@ -64,7 +66,7 @@ Each phase leaves the app working, so you can stop between phases. Circa Waves b
 ### Phase 0: Prepare (about half a day)
 
 - [ ] Create a branch: `git switch -c multi-tenancy`.
-- [ ] Back up the database (Supabase dashboard → Database → Backups, or `pg_dump`).
+- [x] Back up the database: `backups/2026-10-27/` (`roles.sql`, `schema.sql`, `data.sql`, created with `npx supabase db dump --linked`). The folder is git-ignored.
 - [ ] Set up somewhere to test that isn't production: a second Supabase project, or local Supabase via `supabase start` (needs Docker).
 - [ ] Capture the current schema so migrations match reality:
   ```bash
@@ -125,7 +127,7 @@ create index on tiktok_videos (client_id);
   alter table tiktok_videos drop constraint tiktok_videos_platform_video_id_key;
   alter table tiktok_videos add unique (client_id, platform_video_id);
   ```
-  Do the same for `instagram_discoveries` and any URL or video-ID uniques on `content_discoveries` and `circa_full_content`. Check each actual constraint name with `\d tablename` first.
+  Do the same for `instagram_discoveries` (`instagram_discoveries_platform_video_id_key`) and for both uniques on `content_discoveries`: `content_discoveries_platform_platform_video_id_key` becomes `unique (client_id, platform, platform_video_id)`, and `content_discoveries_source_url_key` becomes `unique (client_id, source_url)`. Constraint names are taken from the 27 October 2026 schema dump.
 - [ ] Update every `upsert(..., { onConflict: "platform_video_id" })` in `scripts/` to `onConflict: "client_id,platform_video_id"`.
 - [ ] Rename `circa_full_content` → `full_content`. To avoid breaking the scripts mid-change, leave a view behind for a while: `create view circa_full_content as select * from full_content;`. Update `TABLE_NAME` in `downloadContent.js`, `removeOrphanedDownloads.js` and `keepAlive.cjs`, plus the `.from()` calls in `internetSearch.js`, `instagramSearch.js` and `importDiscoveries.js`, then drop the view.
 - [ ] Add your own user to `platform_admins` once you have an account (Phase 2).
@@ -177,7 +179,7 @@ alter table tiktok_videos enable row level security;
 create policy "members read" on tiktok_videos for select using (is_member(client_id));
 ```
 
-- [ ] Turn RLS on for **every** table, including admin-only ones (`content_discoveries`, `instagram_discoveries`, `discovery_search_state`, `full_content`). Give the admin-only tables **no** policies, so only the service role can touch them.
+- [ ] RLS is already on for the 9 existing tables (as of the 27 October 2026 dump), so this step only applies to new tables (`clients`, `platform_admins`, `memberships`, `calendar_posts`). Keep RLS on for **every** table, including admin-only ones (`content_discoveries`, `instagram_discoveries`, `discovery_search_state`, `full_content`). Give the admin-only tables **no** policies, so only the service role can touch them.
 - [ ] `clients`: members can read their own row (`using (is_member(id))`).
 - [ ] `memberships`: users can read their own rows (`using (user_id = auth.uid())`).
 - [ ] Run the Supabase **Security Advisor** (Dashboard → Advisors). It flags tables with RLS turned off.

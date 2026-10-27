@@ -32,3 +32,9 @@ yarn-error.log*
 # TypeScript cache (harmless even if you're using JS)
 *.tsbuildinfo
 next-env.d.ts
+
+# Database backups (contain real data, never commit)
+backups/
+
+# Supabase CLI local state (project link, connection info)
+supabase/.temp/
