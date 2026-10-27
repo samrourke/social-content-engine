@@ -5,15 +5,11 @@
   --color-community:#f1e3ff;
 }
 
-
-
 .calendarContainer {
-  position: relative;
-  width: min(1400px, calc(100% - 48px));
-  height: 100%;
+  width: min(1400px, calc(100% - 2rem));
   min-height: 100vh;
-  margin: 8rem auto;
- padding: 2rem 3rem;
+  margin: 8rem auto 4rem;
+  padding: clamp(1rem, 3vw, 3rem); /* shrinks with the screen instead of a fixed 3rem */
   background-color: var(--background);
   color: var(--foreground);
   border: 1px solid var(--color-sage);
@@ -21,18 +17,32 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.calendarNav{
-    width:100%;
-    display:flex;
-    justify-content:flex-start;
-    gap:3rem;
+/*---------- Navigation: month controls on the left, actions on the right ----------*/
+
+.calendarNav {
+  display: flex;
+  flex-wrap: wrap; /* the actions drop onto a new line when there isn't room */
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.monthControls,
+.navActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.monthControls {
+  flex-wrap: nowrap;
 }
 
 .monthNavBtn {
-  
- 
   display: grid;
   place-items: center;
+  flex-shrink: 0;
   width: 2.25rem;
   height: 2.25rem;
   padding: 0;
@@ -49,30 +59,58 @@
   background: var(--color-fern);
 }
 
-.monthNavBtn:focus-visible {
+.select {
+  width: auto; /* globals.css makes every select 100% wide */
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--foreground);
+}
+
+.month {
+  min-width: 9rem; /* fits "September" */
+}
+
+.primaryBtn,
+.secondaryBtn {
+  padding: var(--space-2) var(--space-4);
+  border-radius: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.primaryBtn {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-text-light);
+}
+
+.primaryBtn:hover {
+  background: var(--color-primary-hover);
+}
+
+.secondaryBtn {
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--foreground);
+}
+
+.secondaryBtn:hover {
+  background: var(--color-surface-muted);
+}
+
+.monthNavBtn:focus-visible,
+.select:focus-visible,
+.primaryBtn:focus-visible,
+.secondaryBtn:focus-visible,
+.post:focus-visible {
   outline: 2px solid var(--color-fern);
   outline-offset: 2px;
 }
 
-.select{
-    width:fit-content;
-    min-width: 200px;
-    color: var(--foreground);
-    border-radius: 4px;
-    padding: 0.5rem 1rem;
-}
-
-
-
-
-.calendarHeader{
-    width:100%;
-   padding: 1rem 3rem;
-   margin: 0 auto;
-    display:flex;
-    justify-content:space-between;
-    border-bottom: 1px solid var(--foreground);
-}
+/*---------- Month grid ----------*/
 
 .calendarHeader,
 .calendarGrid {
@@ -80,12 +118,18 @@
   grid-template-columns: repeat(7, minmax(0, 1fr)); /* minmax stops long text from widening a column */
 }
 
-
+.calendarHeader {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--foreground);
+  text-align: center;
+  font-weight: 600;
+}
 
 .calendarCell {
+  min-width: 0;
   min-height: 7rem;
   padding: 0.25rem;
-  border: 1px solid var(--border, #ddd);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
 }
 
@@ -93,8 +137,8 @@
   opacity: 0.4;
 }
 
-.today{
-    border: 1.5px solid var(--color-sage);
+.today {
+  border: 2px solid var(--color-fern);
 }
 
 .today time {
@@ -116,58 +160,129 @@
   text-overflow: ellipsis; /* long titles get "..." */
   cursor: pointer;
   background: #e9ecef;
-  color:var(--color-deep-green);
-
+  color: var(--color-deep-green);
 }
 
-.post:hover{
-  color:var(--background)
+.post:hover {
+  filter: brightness(0.92);
 }
 
-.post[data-purpose="Awareness"], #awareness::before  {background:var(--color-awareness) }
-.post[data-purpose="Engagement"], #engagement::before { background: var(--color-engagement) }
-.post[data-purpose="Conversion"], #conversion::before { background: var(--color-conversion) }
-.post[data-purpose="Community"], #community::before  { background: var(--color-community) }
+.post[data-purpose="Awareness"], .icon[data-purpose="Awareness"]::before { background: var(--color-awareness); }
+.post[data-purpose="Engagement"], .icon[data-purpose="Engagement"]::before { background: var(--color-engagement); }
+.post[data-purpose="Conversion"], .icon[data-purpose="Conversion"]::before { background: var(--color-conversion); }
+.post[data-purpose="Community"], .icon[data-purpose="Community"]::before { background: var(--color-community); }
 
-.calendarIcons{
-  width: 100%;
+/*---------- Phone list view (hidden until the phone breakpoint) ----------*/
+
+.agenda {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agendaDay {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+.agendaDay + .agendaDay {
+  margin-top: var(--space-3);
+}
+
+.agendaDate {
+  display: block;
+  font-weight: 700;
+}
+
+/* On a phone there's room to show the whole title, so let it wrap */
+.agendaPost {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  white-space: normal;
+}
+
+.agendaEmpty {
+  color: var(--color-text-muted);
+}
+
+/*---------- Purpose key ----------*/
+
+.calendarIcons {
   display: flex;
-  gap:1rem;
-  position: absolute;
-  bottom:0;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: var(--space-5) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-sm);
 }
 
-.icon{
-  position: relative;
-}
-
-.icon::before{
-  content: '';
-  border-radius:50%;
-  height:20px;
-  aspect-ratio: 1/1;
-  position: absolute;
-  top:-20px;
-}
-
-.form{
-  margin:0 auto;
-  width: 50%;
+.icon {
   display: flex;
-  flex-direction: column;
-  gap:2rem;
-  background-color: var(--background);
-  border:1px solid var(--color-sage);
-  padding: 3rem 2rem;
-  color:var(--color-deep-green)
-
+  align-items: center;
+  gap: var(--space-2);
 }
 
-
-.formInput{
-  color:var(--color-hunter)
+.icon::before {
+  content: "";
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-strong);
 }
 
-.formInput::placeholder{
-  color:var(--color-text-muted);
+/*---------- Smaller desktops and tablets: tighter grid ----------*/
+
+@media (max-width: 1024px) {
+  .calendarCell {
+    min-height: 5.5rem;
+  }
+
+  .post {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.6875rem;
+  }
+}
+
+/*---------- Phones: swap the grid for the list ----------*/
+
+@media (max-width: 640px) {
+  .calendarContainer {
+    width: calc(100% - 1rem);
+    margin-top: 6rem;
+  }
+
+  .calendarNav {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .monthControls {
+    justify-content: space-between;
+  }
+
+  .select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Month names are longer than years, so give the month more of the row */
+  .month {
+    flex: 1.6;
+  }
+
+  .navActions > * {
+    flex: 1;
+  }
+
+  .calendarHeader,
+  .calendarGrid {
+    display: none;
+  }
+
+  .agenda {
+    display: block;
+  }
 }

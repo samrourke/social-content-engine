@@ -76,6 +76,11 @@ export default function Calendar({ rows = [] }) {
     [rows],
   );
 
+  // Days of the viewed month that have posts, for the phone list view
+  const monthDays = days.filter(
+    (day) => isSameMonth(day, viewDate) && postsByDate[format(day, "dd/MM/yyyy")],
+  );
+
   function handleModalOpen(selectedPost) {
     setModalPost(selectedPost);
 
@@ -105,53 +110,96 @@ export default function Calendar({ rows = [] }) {
         <p>Today: {format(new Date(), "EEEE d MMMM yyyy")}</p>
 
         <div className={styles.calendarNav}>
-          <button
-            className={styles.monthNavBtn}
-            onClick={() => setViewDate((d) => subMonths(d, 1))}
-          >
-            ‹
-          </button>
+          {/* ‹ [Month] [Year] › */}
+          <div className={styles.monthControls}>
+            <button
+              className={styles.monthNavBtn}
+              onClick={() => setViewDate((d) => subMonths(d, 1))}
+              aria-label="Previous month"
+            >
+              ‹
+            </button>
 
-          <select
-            className={`${styles.month} ${styles.select}`}
-            value={viewDate.getMonth()}
-            onChange={(e) =>
-              setViewDate((d) => setMonth(d, Number(e.target.value)))
-            }
-          >
-            {MONTHS.map((name, index) => (
-              <option key={name} value={index}>
-                {name}
-              </option>
-            ))}
-          </select>
-          <button
-            className={styles.monthNavBtn}
-            onClick={() => setViewDate((d) => addMonths(d, 1))}
-          >
-            ›
-          </button>
+            <select
+              className={`${styles.month} ${styles.select}`}
+              value={viewDate.getMonth()}
+              onChange={(e) =>
+                setViewDate((d) => setMonth(d, Number(e.target.value)))
+              }
+              aria-label="Month"
+            >
+              {MONTHS.map((name, index) => (
+                <option key={name} value={index}>
+                  {name}
+                </option>
+              ))}
+            </select>
 
-          <select
-            className={`${styles.year} ${styles.select}`}
-            value={viewYear}
-            onChange={(e) =>
-              setViewDate((d) => setYear(d, Number(e.target.value)))
-            }
-          >
-            {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
+            <select
+              className={`${styles.year} ${styles.select}`}
+              value={viewYear}
+              onChange={(e) =>
+                setViewDate((d) => setYear(d, Number(e.target.value)))
+              }
+              aria-label="Year"
+            >
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
 
-          <button onClick={() => setViewDate(startOfMonth(new Date()))}>
-            Today
-          </button>
-          <button onClick={() => addEventOpen()}>Add +</button>
+            <button
+              className={styles.monthNavBtn}
+              onClick={() => setViewDate((d) => addMonths(d, 1))}
+              aria-label="Next month"
+            >
+              ›
+            </button>
+          </div>
+
+          <div className={styles.navActions}>
+            <button
+              className={styles.secondaryBtn}
+              onClick={() => setViewDate(startOfMonth(new Date()))}
+            >
+              Today
+            </button>
+            <button className={styles.primaryBtn} onClick={() => addEventOpen()}>
+              Add post +
+            </button>
+          </div>
         </div>
 
+        {/* Phones: the month as a list of days that have posts (hidden on wider screens) */}
+        <ol className={styles.agenda}>
+          {monthDays.length === 0 && (
+            <li className={styles.agendaEmpty}>No posts planned this month.</li>
+          )}
+          {monthDays.map((day) => (
+            <li
+              key={day.toISOString()}
+              className={`${styles.agendaDay} ${isToday(day) ? styles.today : ""}`}
+            >
+              <time className={styles.agendaDate} dateTime={format(day, "yyyy-MM-dd")}>
+                {format(day, "EEE d MMM")}
+              </time>
+              {postsByDate[format(day, "dd/MM/yyyy")].map((post, i) => (
+                <button
+                  onClick={() => handleModalOpen(post)}
+                  key={i}
+                  className={`${styles.post} ${styles.agendaPost}`}
+                  data-purpose={post.purpose}
+                >
+                  {post.content || post.text}
+                </button>
+              ))}
+            </li>
+          ))}
+        </ol>
+
+        {/* Tablets and desktops: the month grid (hidden on phones) */}
         <div className={styles.calendarHeader}>
           {DAYS_OF_WEEK.map((day) => (
             <div key={day} className={styles.calendarDay}>
@@ -183,7 +231,7 @@ export default function Calendar({ rows = [] }) {
                       className={styles.post}
                       data-purpose={post.purpose}
                     >
-                      {post.content}
+                      {post.content || post.text}
                     </button>
                   ),
                 )}
@@ -191,17 +239,13 @@ export default function Calendar({ rows = [] }) {
             );
           })}
         </div>
-        <div className={styles.calendarIcons}>
+        <ul className={styles.calendarIcons} aria-label="Post purposes">
           {calendarIcons.map((name) => (
-            <p
-              key={name}
-              className={styles.icon}
-              id={styles[name.toLowerCase()]}
-            >
+            <li key={name} className={styles.icon} data-purpose={name}>
               {name}
-            </p>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
 
       {modalState && (
