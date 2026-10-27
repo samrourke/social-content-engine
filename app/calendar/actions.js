@@ -11,8 +11,7 @@ import {
   addYears,
 } from "date-fns";
 
-// Called by the Add Post form. formData holds the form's fields by their `name`
-//Turn this into a mutable Object with Object.fromEntries and send to appendCalendarPost()
+//Set Field limits for each post, compare form inputs against these limits before submitting
 
 const FIELD_LIMITS = {
   date: 10,

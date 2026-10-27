@@ -14,7 +14,6 @@ import {
   isToday,
   setMonth,
   setYear,
-  add,
 } from "date-fns";
 
 import styles from "./Calendar.module.css";
@@ -35,7 +34,7 @@ const calendarIcons = ["Awareness", "Engagement", "Conversion", "Community"];
 
 export default function Calendar({ rows = [] }) {
   const [modalState, setModalState] = useState(false);
-  const [modalPost, setModalPost] = useState("null");
+  const [modalPost, setModalPost] = useState(null);
 
   const [addEvent, setAddEvent] = useState(false);
 
@@ -78,7 +77,8 @@ export default function Calendar({ rows = [] }) {
 
   // Days of the viewed month that have posts, for the phone list view
   const monthDays = days.filter(
-    (day) => isSameMonth(day, viewDate) && postsByDate[format(day, "dd/MM/yyyy")],
+    (day) =>
+      isSameMonth(day, viewDate) && postsByDate[format(day, "dd/MM/yyyy")],
   );
 
   function handleModalOpen(selectedPost) {
@@ -166,7 +166,10 @@ export default function Calendar({ rows = [] }) {
             >
               Today
             </button>
-            <button className={styles.primaryBtn} onClick={() => addEventOpen()}>
+            <button
+              className={styles.primaryBtn}
+              onClick={() => addEventOpen()}
+            >
               Add post +
             </button>
           </div>
@@ -182,7 +185,10 @@ export default function Calendar({ rows = [] }) {
               key={day.toISOString()}
               className={`${styles.agendaDay} ${isToday(day) ? styles.today : ""}`}
             >
-              <time className={styles.agendaDate} dateTime={format(day, "yyyy-MM-dd")}>
+              <time
+                className={styles.agendaDate}
+                dateTime={format(day, "yyyy-MM-dd")}
+              >
                 {format(day, "EEE d MMM")}
               </time>
               {postsByDate[format(day, "dd/MM/yyyy")].map((post, i) => (
