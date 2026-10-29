@@ -1,0 +1,273 @@
+.dashboard {
+  width: min(1400px, calc(100% - 48px));
+  margin: 0 auto;
+  padding-top: 12rem;
+  padding-bottom: 6rem;
+}
+
+/* ---------------------------
+   Header
+---------------------------- */
+
+.header {
+  width: min(800px, 100%);
+  margin: 0 auto 48px;
+  text-align: center;
+}
+
+.title {
+  margin: 0 0 12px;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.subtitle {
+  margin: 0;
+  font-family: var(--font-sans);
+  opacity: 0.85;
+}
+
+.sectionHeading {
+  margin: 0 0 16px;
+  font-size: 1.5rem;
+}
+
+.sectionNote {
+  max-width: 760px;
+  margin: 0 0 24px;
+  font-family: var(--font-sans);
+  opacity: 0.85;
+}
+
+.warning {
+  display: inline-block;
+  margin: 0 0 24px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-deep-green);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* ---------------------------
+   Stat tiles
+---------------------------- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 0 0 56px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-deep-green);
+}
+
+.tile dt {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.tile dd {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.tile em {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-style: normal;
+  opacity: 0.75;
+}
+
+/* ---------------------------
+   Bar charts
+---------------------------- */
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.panel {
+  padding: 20px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-deep-green);
+}
+
+.panelTitle {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+}
+
+.panelDescription {
+  margin: 0 0 16px;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) 4.5rem;
+  gap: 10px;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+}
+
+.barLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barTrack {
+  height: 14px;
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--color-fern);
+}
+
+.barRow:hover .barFill {
+  background: var(--color-hunter);
+}
+
+.barValue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.barValue em {
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------
+   Accounts by category
+---------------------------- */
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.categoryCard {
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.categoryTitle {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.accountList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.accountRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+}
+
+.accountName {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.accountName a {
+  overflow: hidden;
+  color: inherit;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountName em {
+  font-size: 0.75rem;
+  font-style: normal;
+  color: var(--color-text-muted);
+}
+
+.accountShare {
+  font-weight: 600;
+}
+
+/* ---------------------------
+   Responsive
+---------------------------- */
+
+@media (max-width: 1000px) {
+  .chartGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .dashboard {
+    width: calc(100% - 32px);
+  }
+
+  .tiles {
+    grid-template-columns: 1fr;
+  }
+
+  .barRow {
+    grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) 4rem;
+  }
+}

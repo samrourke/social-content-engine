@@ -41,5 +41,6 @@ export const site = {
     { name: "Instagram Review", href: "/instagram", id: "instagram" },
     { name: "Dashboard", href: "/tiktok", id: "dashboard" },
     { name: "Calendar", href: "/calendar", id: "calendar" },
+    { name: "Fan Analysis", href: "/fan-analysis", id: "fan-analysis" },
   ],
 };
