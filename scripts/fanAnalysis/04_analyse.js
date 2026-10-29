@@ -85,13 +85,13 @@ export function AnalyseFans() {
   console.log("");
   console.log("");
 
-  console.table(
-    shared.map(({ username, fans, share }) => ({
-      username,
-      fans,
-      share: `${Math.round(share * 100)}%`,
-    })),
-  );
+  // console.table(
+  //   shared.map(({ username, fans, share }) => ({
+  //     username,
+  //     fans,
+  //     share: `${Math.round(share * 100)}%`,
+  //   })),
+  // );
 
   const sharedAccountsPath = path.join(
     INSTA_ENGAGEMENT_DIR,
