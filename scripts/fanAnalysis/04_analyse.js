@@ -6,7 +6,7 @@ export function AnalyseFans() {
 
   const ARTIST_USERNAME = "circawaves";
 
-  const MIN_FANS = 2; // Set for two for low tests but could be set higher for real world applications
+  const MIN_FANS = 2; // Set for two for low tests but could be set higher for real world
 
   const ANALYSIS_FILES = fs
     .readdirSync(INSTA_ENGAGEMENT_DIR)
@@ -19,6 +19,7 @@ export function AnalyseFans() {
   }
 
   const latestFile = ANALYSIS_FILES.sort().at(-1);
+
   console.log("-------------------------------");
   console.log(`Analysing fans from ${latestFile}`);
   console.log("-------------------------------");
@@ -91,6 +92,15 @@ export function AnalyseFans() {
       share: `${Math.round(share * 100)}%`,
     })),
   );
+
+  const sharedAccountsPath = path.join(
+    INSTA_ENGAGEMENT_DIR,
+    latestFile.replace("ig-fans-", "ig-shared-accounts-"),
+  );
+
+  fs.writeFileSync(sharedAccountsPath, JSON.stringify(shared, null, 2));
+
+  console.log(`Saved to ${sharedAccountsPath}`);
 }
 
 AnalyseFans();
