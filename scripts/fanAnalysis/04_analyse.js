@@ -95,8 +95,14 @@ export function AnalyseFans() {
 
   const sharedAccountsPath = path.join(
     INSTA_ENGAGEMENT_DIR,
-    latestFile.replace("ig-fans-", "ig-shared-accounts-"),
+    latestFile.replace("ig-following-", "ig-shared-accounts-"),
   );
+
+  if (sharedAccountsPath === path.join(INSTA_ENGAGEMENT_DIR, latestFile)) {
+    throw new Error(
+      "Output path is the same as the input — refusing to overwrite.",
+    );
+  }
 
   fs.writeFileSync(sharedAccountsPath, JSON.stringify(shared, null, 2));
 

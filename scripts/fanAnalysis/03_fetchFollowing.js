@@ -86,6 +86,11 @@ async function fetchAllFollowing(fans) {
 
     try {
       const following = await fetchFollowing(fan);
+      // The actor returns no rows, rather than an error, for an account it can't
+      // read, so treat an empty list as a failure or it lowers every share in 04
+      if (following.length === 0) {
+        throw new Error("no follows returned (private, renamed or deleted?)");
+      }
       // Private accounts a fan follows are almost always friends and family:
       // no use to the analysis, and private individuals' data, so drop them now
       const publicFollowing = following.filter(
@@ -105,7 +110,11 @@ async function fetchAllFollowing(fans) {
     } catch (err) {
       // Fan went private, renamed or deleted their account since stage 1
       console.error(`  failed, skipping: ${err.message}`);
-      results.push({ fanId: fan.id, error: err.message, following: [] });
+      results.push({
+        fanId: pseudonymise(fan.id),
+        error: err.message,
+        following: [],
+      });
     }
   }
 
@@ -154,7 +163,7 @@ function selectFans(fans) {
 }
 
 async function main() {
-  const { file, fans } = loadLatestFans();
+  const { fans } = loadLatestFans();
   const selected = selectFans(fans);
   console.log(`Selected ${selected.length} fans to look up`);
 
@@ -166,10 +175,10 @@ async function main() {
   console.log(
     `Done: ${totalRows} rows fetched (~$${((totalRows / 1000) * 0.5).toFixed(2)} at $0.50/1k)`,
   );
-  const outputPath = path.join(
-    FAN_ANALYSIS_DIR,
-    file.replace("ig-fans-", "ig-following-"),
-  );
+  // Each run samples different fans, so name the output after this run rather
+  // than the ig-fans file it sampled from, so a re-run never overwrites paid data
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const outputPath = path.join(FAN_ANALYSIS_DIR, `ig-following-${stamp}.json`);
   fs.writeFileSync(outputPath, JSON.stringify(results, null, 2));
   console.log(`Saved to ${outputPath}`);
 }
