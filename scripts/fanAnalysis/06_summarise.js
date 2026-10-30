@@ -32,7 +32,9 @@ const PLATFORM = "instagram";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
+  throw new Error(
+    "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.",
+  );
 }
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -79,11 +81,28 @@ function buildClassificationLookup(accounts) {
   for (const account of accounts) {
     lookup.set(account.id, account.classification);
   }
+  console.log("look up ", lookup);
   return lookup;
 }
 
+/* returns
+    {  
+        {'followed account id number' => 
+            {
+            category: 'num',
+            subcategory: 'num',
+            team: 'num',
+            sensitive: 'boolean',
+            },
+        }
+    ....etc
+    } 
+for every account analysed for easy look up later
+   */
+
 // For each fan, collect the set of categories/subcategories/teams they follow
-// at least one account in, then count how many fans have each one
+// at least one account in,
+// Then count how many fans have each category, sub category and team
 function countFans(fans, lookup) {
   const counts = {
     category: new Map(),
@@ -117,34 +136,58 @@ function countFans(fans, lookup) {
   return counts;
 }
 
+/*
+Returns a map for each cateogry, sub category and team with total fans like: 
+
+{
+  category: Map(3) {
+    'sport' => 2,
+    'film / tv' => 2,
+    'influencer / content creator' => 2
+  },
+  subcategory: Map(3) { 'football' => 2, 'sci-fi' => 2, 'wrestling' => 2 },
+  team: Map(5) {
+    'Newcastle United' => 2,
+    'Arsenal' => 2,
+    'Manchester United' => 2,
+    'Barcelona' => 2,
+    'Chelsea' => 2
+  }
+} */
+
+// calculate what percentage of each category, sub cateogry and team is followed by each fan
+
 function toShares(countMap, totalFans) {
   return [...countMap]
     .map(([name, fans]) => ({ name, fans, share: fans / totalFans }))
     .sort((a, b) => b.fans - a.fans);
 }
 
-// Individual accounts, with their classification, most-followed first
+// Individual accounts with their classification organised by most -> least folllowed
 function topAccounts(accounts) {
-  return accounts
-    // Only name accounts that are verified or that the model recognised. An
-    // unverified "unknown" account could be a private individual, so it still
-    // counts towards the category totals but isn't listed by name
-    .filter(
-      (account) =>
-        account.is_verified || account.classification.category !== "unknown",
-    )
-    .map((account) => ({
-      username: account.username,
-      full_name: account.full_name,
-      fans: account.fans,
-      share: account.share,
-      category: account.classification.category,
-      subcategory: account.classification.subcategory,
-      team: account.classification.team,
-    }))
-    .sort((a, b) => b.fans - a.fans);
+  return (
+    accounts
+      // Only name accounts that are verified or that the model recognised. An
+      // unverified "unknown" account could be a private individual, so it still
+      // counts towards the category totals but isn't listed by name
+      .filter(
+        (account) =>
+          account.is_verified || account.classification.category !== "unknown",
+      )
+      .map((account) => ({
+        username: account.username,
+        full_name: account.full_name,
+        fans: account.fans,
+        share: account.share,
+        category: account.classification.category,
+        subcategory: account.classification.subcategory,
+        team: account.classification.team,
+      }))
+      .sort((a, b) => b.fans - a.fans)
+  );
 }
 
+//categories followed organised most -> least
 function topAccountsByCategory(accountRows, perCategory = 5) {
   const byCategory = {};
   for (const row of accountRows) {
@@ -155,7 +198,7 @@ function topAccountsByCategory(accountRows, perCategory = 5) {
   return byCategory;
 }
 
-// "ig-fans-2026-10-30T07-58-10-795Z.json" → ISO date string
+// "ig-fans-2026-10-30T07-58-10-795Z.json" -> ISO date string
 function dateFromStamp(stamp) {
   const iso = stamp
     .replace(".json", "")
@@ -164,9 +207,11 @@ function dateFromStamp(stamp) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-// Stage 1–2 totals: how big and loyal the engaged audience is. Worked out here
-// from the newest ig-fans file (which holds usernames, so it never leaves this
-// machine) and stored as totals only
+// Stage 01 and 02 totals: how big and loyal the engaged audience is.
+//  Worked out here from the newest ig-fans- file and stored as totals only.
+// (the ig-fans- file holds actual usernames so it never leaves this
+// machine and maybe should get deleted at the end of the process?)
+
 function getEngagementStats() {
   const fansFile = fs
     .readdirSync(FAN_ANALYSIS_DIR)
@@ -177,14 +222,18 @@ function getEngagementStats() {
 
   const fans = readJson(fansFile);
 
-  // The raw scrape with the same timestamp says which posts were analysed
+  // Get the raw scrape with the matching timestamp which says which posts were analysed
   const rawFile = fansFile.replace("ig-fans-", "ig-engagement-raw-");
   const posts = fs.existsSync(path.join(FAN_ANALYSIS_DIR, rawFile))
     ? readJson(rawFile).posts.filter((post) => !post.error)
     : [];
 
-  const postCount = posts.length || Math.max(0, ...fans.map((fan) => fan.postsEngaged));
-  const postDates = posts.map((post) => post.timestamp).filter(Boolean).sort();
+  const postCount =
+    posts.length || Math.max(0, ...fans.map((fan) => fan.postsEngaged));
+  const postDates = posts
+    .map((post) => post.timestamp)
+    .filter(Boolean)
+    .sort();
 
   return {
     scrapedAt: dateFromStamp(fansFile.replace("ig-fans-", "")),
@@ -201,7 +250,7 @@ function getEngagementStats() {
     ).length,
   };
 }
-
+//Save results to supabase table
 async function saveToSupabase(stamp, summary, engagement) {
   const { error } = await supabase.from("fan_analysis").upsert(
     {
@@ -223,6 +272,11 @@ async function main() {
   const lookup = buildClassificationLookup(accounts);
   const counts = countFans(fans, lookup);
   const accountRows = topAccounts(accounts);
+
+  console.log(
+    "shares for main cateogories ",
+    toShares(counts.category, fans.length),
+  );
 
   const summary = {
     fansAnalysed: fans.length,
@@ -256,7 +310,9 @@ async function main() {
 
   const engagement = getEngagementStats();
   await saveToSupabase(stamp, summary, engagement);
-  console.log(`Saved to Supabase (fan_analysis, ${ARTIST} / ${stamp.replace(".json", "")})`);
+  console.log(
+    `Saved to Supabase (fan_analysis, ${ARTIST} / ${stamp.replace(".json", "")})`,
+  );
 }
 
 main().catch((err) => {
