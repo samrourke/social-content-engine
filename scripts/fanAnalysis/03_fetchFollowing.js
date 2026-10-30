@@ -4,7 +4,13 @@
 // via Apify, for 04_analyse.js to count and cluster.
 //
 // Run with:
-//   node scripts/fanAnalysis/03_fetchFollowing.js            # test run (SAMPLE_SIZE fans)
+//   node scripts/fanAnalysis/03_fetchFollowing.js            # new run (SAMPLE_SIZE fans)
+//   node scripts/fanAnalysis/03_fetchFollowing.js --resume output/fan-analysis/ig-following-<stamp>.json
+//                                                            # carry on an interrupted run
+//
+// Progress is saved after every fan, so stopping partway (Ctrl+C, a crash, a
+// spending limit) keeps everything fetched so far. --resume skips fans already
+// in that file and samples new ones until it holds SAMPLE_SIZE fans.
 //
 // Required env vars (add to .env):
 //   APIFY_API_TOKEN=            (already in .env)
@@ -14,6 +20,7 @@ import path from "node:path";
 import dotenv from "dotenv";
 import { ApifyClient } from "apify-client";
 import crypto from "node:crypto";
+import { parseArgs } from "node:util";
 
 dotenv.config({ path: ".env" });
 
@@ -28,6 +35,12 @@ const FOLLOWING_ACTOR_ID = "publicsignallabs/instagram-following";
 
 // Cap per fan: anyone following more than this gets a partial list.
 const MAX_FOLLOWING_PER_FAN = 1000;
+// What the following actor charges per row returned, for the running cost estimate
+const COST_PER_1000_ROWS = 0.5;
+
+const { values: args } = parseArgs({
+  options: { resume: { type: "string" } },
+});
 
 const apifyToken = process.env.APIFY_API_TOKEN;
 if (!apifyToken) throw new Error("Missing APIFY_API_TOKEN.");
@@ -78,11 +91,28 @@ function pseudonymise(fanId) {
     .slice(0, 12);
 }
 
-async function fetchAllFollowing(fans) {
-  const results = [];
+// Writes to a temporary file then renames it, so stopping the script mid-write
+// can't leave a half-written (unreadable) results file
+function saveResults(outputPath, results) {
+  const tempPath = `${outputPath}.tmp`;
+  fs.writeFileSync(tempPath, JSON.stringify(results, null, 2));
+  fs.renameSync(tempPath, outputPath);
+}
+
+function estimateCost(results) {
+  const rows = results.reduce((sum, result) => sum + (result.followingFetched ?? 0), 0);
+  return { rows, cost: (rows / 1000) * COST_PER_1000_ROWS };
+}
+
+// results may already hold fans from an earlier, interrupted run (--resume);
+// new fans are added to it and the file is saved after each one
+async function fetchAllFollowing(fans, results, outputPath) {
+  const alreadyDone = results.length;
 
   for (const [index, fan] of fans.entries()) {
-    console.log(`[${index + 1}/${fans.length}] fetching follows...`);
+    console.log(
+      `[${alreadyDone + index + 1}/${alreadyDone + fans.length}] fetching follows...`,
+    );
 
     try {
       const following = await fetchFollowing(fan);
@@ -104,8 +134,9 @@ async function fetchAllFollowing(fans) {
         following: publicFollowing.map(slimFollowed),
       });
 
+      const { cost } = estimateCost(results);
       console.log(
-        `  ${following.length} follows, ${publicFollowing.length} public kept`,
+        `  ${following.length} follows, ${publicFollowing.length} public kept (run total ~$${cost.toFixed(2)})`,
       );
     } catch (err) {
       // Fan went private, renamed or deleted their account since stage 1
@@ -116,6 +147,8 @@ async function fetchAllFollowing(fans) {
         following: [],
       });
     }
+
+    saveResults(outputPath, results);
   }
 
   return results;
@@ -144,42 +177,54 @@ function loadLatestFans() {
   };
 }
 
-function selectFans(fans) {
+// doneFanIds: scrambled IDs of fans already fetched (when resuming), so they
+// aren't fetched and paid for twice
+function selectFans(fans, doneFanIds, count) {
   const eligible = fans.filter(
     (fan) =>
       !fan.is_private &&
       !fan.is_verified &&
       fan.postsEngaged >= MIN_POSTS_ENGAGED,
   );
+  const remaining = eligible.filter((fan) => !doneFanIds.has(pseudonymise(fan.id)));
 
   // Random sample, so the results describe engaged fans in general rather
   // than just the very top scorers
-  const shuffled = [...eligible].sort(() => Math.random() - 0.5);
+  const shuffled = [...remaining].sort(() => Math.random() - 0.5);
 
   console.log(
     `${eligible.length} eligible fans (public, not verified, ${MIN_POSTS_ENGAGED}+ posts)`,
   );
-  return shuffled.slice(0, SAMPLE_SIZE);
+  return shuffled.slice(0, count);
 }
 
 async function main() {
   const { fans } = loadLatestFans();
-  const selected = selectFans(fans);
-  console.log(`Selected ${selected.length} fans to look up`);
 
-  const results = await fetchAllFollowing(selected);
-  const totalRows = results.reduce(
-    (sum, result) => sum + (result.followingFetched ?? 0),
-    0,
-  );
+  let outputPath;
+  let results = [];
+
+  if (args.resume) {
+    outputPath = args.resume;
+    results = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    console.log(`Resuming ${outputPath}: ${results.length} fans already fetched`);
+  } else {
+    // Each run samples different fans, so name the output after this run rather
+    // than the ig-fans file it sampled from, so a re-run never overwrites paid data
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    outputPath = path.join(FAN_ANALYSIS_DIR, `ig-following-${stamp}.json`);
+  }
+
+  const doneFanIds = new Set(results.map((result) => result.fanId));
+  const selected = selectFans(fans, doneFanIds, SAMPLE_SIZE - results.length);
+  console.log(`Selected ${selected.length} fans to look up, saving to ${outputPath}`);
+
+  await fetchAllFollowing(selected, results, outputPath);
+
+  const { rows, cost } = estimateCost(results);
   console.log(
-    `Done: ${totalRows} rows fetched (~$${((totalRows / 1000) * 0.5).toFixed(2)} at $0.50/1k)`,
+    `Done: ${results.length} fans, ${rows} rows fetched (~$${cost.toFixed(2)} at $${COST_PER_1000_ROWS}/1k)`,
   );
-  // Each run samples different fans, so name the output after this run rather
-  // than the ig-fans file it sampled from, so a re-run never overwrites paid data
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const outputPath = path.join(FAN_ANALYSIS_DIR, `ig-following-${stamp}.json`);
-  fs.writeFileSync(outputPath, JSON.stringify(results, null, 2));
   console.log(`Saved to ${outputPath}`);
 }
 

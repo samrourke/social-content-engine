@@ -12,7 +12,13 @@ TikTok to be added later,
 // who liked and commented on each one.
 //
 // Run with:
-//   node scripts/fanAnalysis/01_fetchEngagement.js
+//   node scripts/fanAnalysis/01_fetchEngagement.js            # reuse posts already scraped
+//   node scripts/fanAnalysis/01_fetchEngagement.js --fresh    # re-scrape every post
+//
+// Likers are the expensive part (~$1.26 a post), so posts already in the newest
+// ig-engagement-raw file are copied from it rather than scraped again — only
+// posts that are new (or older than the last run reached, or failed last time)
+// cost anything. Each reused post records which file it came from.
 //
 // Nothing is written to Supabase: fan usernames are personal data, so they stay
 // local in output/fan-analysis/ (gitignored). Only aggregated results go to the database.
@@ -22,6 +28,8 @@ TikTok to be added later,
 //   INSTAGRAM_USERNAME=         optional, defaults to "circawaves" (no @)
 
 import fs from "node:fs";
+import path from "node:path";
+import { parseArgs } from "node:util";
 import dotenv from "dotenv";
 import { ApifyClient } from "apify-client";
 
@@ -42,13 +50,17 @@ console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
 console.log("");
 console.log("");
 
-const POST_COUNT = 5;
+const POST_COUNT = 10;
 // Pinned posts appear first in a profile feed regardless of age, so fetch a few
 // extra and sort by date to find the genuinely recent ones.
 const PINNED_POST_ALLOWANCE = 3;
 const MAX_LIKERS_PER_POST = 1000; // caps the cost of each likes run
 
 const MAX_COMMENTS_PER_POST = 50; // caps the cost of each comments run
+
+const { values: args } = parseArgs({
+  options: { fresh: { type: "boolean", default: false } },
+});
 
 const apifyToken = process.env.APIFY_API_TOKEN;
 const bandUsername = process.env.INSTAGRAM_USERNAME ?? "circawaves";
@@ -122,6 +134,33 @@ async function fetchComments(post) {
   });
 }
 
+// Posts from the newest earlier scrape, keyed by shortCode, so they can be
+// reused instead of paid for again. Failed posts are left out so they're retried
+function loadPreviousPosts() {
+  if (args.fresh || !fs.existsSync(OUTPUT_DIR))
+    return { file: null, posts: new Map() };
+
+  const file = fs
+    .readdirSync(OUTPUT_DIR)
+    .filter(
+      (name) => name.startsWith("ig-engagement-raw-") && name.endsWith(".json"),
+    )
+    .sort()
+    .at(-1);
+  if (!file) return { file: null, posts: new Map() };
+
+  const raw = JSON.parse(fs.readFileSync(path.join(OUTPUT_DIR, file), "utf8"));
+  const posts = new Map(
+    raw.posts
+      .filter((post) => !post.error)
+      .map((post) => [
+        post.shortCode,
+        { ...post, scrapedAt: post.scrapedAt ?? raw.scrapedAt },
+      ]),
+  );
+  return { file, posts };
+}
+
 // Keeps only user data that later stages need from a liker or comment owner
 function slimUser(user) {
   return {
@@ -145,12 +184,36 @@ async function main() {
     );
   }
 
+  const previous = loadPreviousPosts();
+  const toScrape = posts.filter((post) => !previous.posts.has(post.shortCode));
+  console.log(
+    previous.file
+      ? `Reusing ${posts.length - toScrape.length} posts from ${previous.file}, scraping ${toScrape.length} (~$${(toScrape.reduce((sum, post) => sum + (post.likesCount ?? 0), 0) * 0.00217).toFixed(2)})`
+      : `No earlier scrape to reuse${args.fresh ? " (--fresh)" : ""}, scraping all ${posts.length} posts`,
+  );
+
   //Array to store engagement data
 
   const engagement = [];
 
   for (const [index, post] of posts.entries()) {
     console.log(`[${index + 1}/${posts.length}] ${post.url}`);
+
+    const reused = previous.posts.get(post.shortCode);
+    if (reused) {
+      // Keep the stored likers/comments, but take the latest post details (like counts)
+      engagement.push({
+        ...post,
+        likers: reused.likers,
+        comments: reused.comments,
+        scrapedAt: reused.scrapedAt,
+        reusedFrom: previous.file,
+      });
+      console.log(
+        `  reused ${reused.likers.length} likers, ${reused.comments.length} comments (scraped ${reused.scrapedAt?.slice(0, 10)})`,
+      );
+      continue;
+    }
 
     //USe try/catch to handle errors so that an error in Post 4 does not crash the
     //whole script and lose data for posts 1-3.
@@ -167,7 +230,12 @@ async function main() {
         owner: slimUser(comment.owner),
       }));
 
-      engagement.push({ ...post, likers, comments: postComments });
+      engagement.push({
+        ...post,
+        likers,
+        comments: postComments,
+        scrapedAt: new Date().toISOString(),
+      });
 
       console.log(
         `  got ${likers.length}/${post.likesCount} likers, ${postComments.length}/${post.commentsCount} comments`,
