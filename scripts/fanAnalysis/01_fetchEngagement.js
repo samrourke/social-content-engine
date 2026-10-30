@@ -54,6 +54,11 @@ const POST_COUNT = 10;
 // Pinned posts appear first in a profile feed regardless of age, so fetch a few
 // extra and sort by date to find the genuinely recent ones.
 const PINNED_POST_ALLOWANCE = 3;
+// Collab posts owned by another account (e.g. a tour announcement posted by the
+// headliner with the band as co-author) show on the band's grid but are seen
+// mostly by the other account's audience, so they're skipped. Fetch extra posts
+// so there are still POST_COUNT of the band's own after skipping them
+const COLLAB_POST_ALLOWANCE = 5;
 const MAX_LIKERS_PER_POST = 1000; // caps the cost of each likes run
 
 const MAX_COMMENTS_PER_POST = 50; // caps the cost of each comments run
@@ -91,12 +96,25 @@ async function fetchRecentPosts(username, count) {
   const items = await runActor(POSTS_ACTOR_ID, {
     directUrls: [`https://www.instagram.com/${username}/`],
     resultsType: "posts",
-    resultsLimit: count + PINNED_POST_ALLOWANCE, //will return pinned posts first, so fetch a few extra
+    resultsLimit: count + PINNED_POST_ALLOWANCE + COLLAB_POST_ALLOWANCE, //will return pinned posts first, so fetch a few extra
   });
 
-  return items
+  const band = username.toLowerCase();
+  const datedPosts = items
     .filter((item) => item.shortCode && item.timestamp)
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  // Owner is missing on some fallback scrapes; treat those as the band's own
+  const isOwnPost = (item) => !item.ownerUsername || item.ownerUsername.toLowerCase() === band;
+
+  for (const item of datedPosts.filter((post) => !isOwnPost(post))) {
+    console.log(
+      `Skipping collab post ${item.shortCode} (${item.timestamp.slice(0, 10)}, ${item.likesCount ?? "?"} likes), owned by @${item.ownerUsername}`,
+    );
+  }
+
+  return datedPosts
+    .filter(isOwnPost)
     .slice(0, count)
     .map((item) => ({
       shortCode: item.shortCode,
@@ -105,6 +123,10 @@ async function fetchRecentPosts(username, count) {
       type: item.type ?? null,
       likesCount: item.likesCount ?? null,
       commentsCount: item.commentsCount ?? null,
+      // Other accounts credited on the band's own post, e.g. a photographer
+      coauthors: (item.coauthorProducers ?? [])
+        .map((coauthor) => coauthor.username)
+        .filter((name) => name && name.toLowerCase() !== band),
     }));
 }
 

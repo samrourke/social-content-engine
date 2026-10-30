@@ -106,8 +106,8 @@ export default function FanAnalysis({ engagement, summary }) {
         <header className={styles.header}>
           <h1 className={styles.title}>Fan analysis</h1>
           <p className={styles.subtitle}>
-            No analysis files found. Run the scripts in scripts/fanAnalysis/ locally —
-            results are read from output/fan-analysis/ and aren&apos;t deployed.
+            No analysis yet. Run the scripts in scripts/fanAnalysis/ — the last one,
+            06_summarise.js, saves the results here.
           </p>
         </header>
       </div>

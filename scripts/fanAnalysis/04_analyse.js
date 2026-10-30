@@ -6,7 +6,7 @@ export function AnalyseFans() {
 
   const ARTIST_USERNAME = "circawaves";
 
-  const MIN_FANS = 2; // Set for two for low tests but could be set higher for real world
+  const MIN_FANS = 8; // Set for two for low tests but could be set higher for real world
 
   const ANALYSIS_FILES = fs
     .readdirSync(INSTA_ENGAGEMENT_DIR)

@@ -29,12 +29,13 @@ const FAN_ANALYSIS_DIR = "output/fan-analysis";
 // Who counts as an engaged fan worth looking up
 const MIN_POSTS_ENGAGED = 2;
 // How many fans to look up. Start tiny while testing; ~1,000 is plenty for a full run
-const SAMPLE_SIZE = 3;
+const SAMPLE_SIZE = 170;
 
 const FOLLOWING_ACTOR_ID = "publicsignallabs/instagram-following";
 
 // Cap per fan: anyone following more than this gets a partial list.
 const MAX_FOLLOWING_PER_FAN = 1000;
+
 // What the following actor charges per row returned, for the running cost estimate
 const COST_PER_1000_ROWS = 0.5;
 
@@ -100,7 +101,10 @@ function saveResults(outputPath, results) {
 }
 
 function estimateCost(results) {
-  const rows = results.reduce((sum, result) => sum + (result.followingFetched ?? 0), 0);
+  const rows = results.reduce(
+    (sum, result) => sum + (result.followingFetched ?? 0),
+    0,
+  );
   return { rows, cost: (rows / 1000) * COST_PER_1000_ROWS };
 }
 
@@ -186,7 +190,9 @@ function selectFans(fans, doneFanIds, count) {
       !fan.is_verified &&
       fan.postsEngaged >= MIN_POSTS_ENGAGED,
   );
-  const remaining = eligible.filter((fan) => !doneFanIds.has(pseudonymise(fan.id)));
+  const remaining = eligible.filter(
+    (fan) => !doneFanIds.has(pseudonymise(fan.id)),
+  );
 
   // Random sample, so the results describe engaged fans in general rather
   // than just the very top scorers
@@ -207,7 +213,9 @@ async function main() {
   if (args.resume) {
     outputPath = args.resume;
     results = JSON.parse(fs.readFileSync(outputPath, "utf8"));
-    console.log(`Resuming ${outputPath}: ${results.length} fans already fetched`);
+    console.log(
+      `Resuming ${outputPath}: ${results.length} fans already fetched`,
+    );
   } else {
     // Each run samples different fans, so name the output after this run rather
     // than the ig-fans file it sampled from, so a re-run never overwrites paid data
@@ -217,7 +225,9 @@ async function main() {
 
   const doneFanIds = new Set(results.map((result) => result.fanId));
   const selected = selectFans(fans, doneFanIds, SAMPLE_SIZE - results.length);
-  console.log(`Selected ${selected.length} fans to look up, saving to ${outputPath}`);
+  console.log(
+    `Selected ${selected.length} fans to look up, saving to ${outputPath}`,
+  );
 
   await fetchAllFollowing(selected, results, outputPath);
 
