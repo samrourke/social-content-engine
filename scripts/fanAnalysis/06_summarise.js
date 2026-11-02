@@ -40,6 +40,16 @@ const MICRO_MAX_FOLLOWERS = 100000;
 const MID_MAX_FOLLOWERS = 1000000;
 const MICRO_INFLUENCERS_SHOWN = 30;
 
+// The band's own accounts: members, side projects, label, crew. Fans following
+// these says nothing about their wider interests, so they're left out of every
+// share and list. Filtering here (rather than in 04) means a change only needs
+// a free re-run of this script
+const BAND_ACCOUNTS = new Set(
+  [ARTIST, "colindjones", "franciswaves", "harpomilk"].map((username) =>
+    username.toLowerCase(),
+  ),
+);
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!supabaseUrl || !serviceRoleKey) {
@@ -97,7 +107,9 @@ function loadInputs() {
 
   return {
     stamp: categorisedFile.replace("ig-accounts-categorised-", ""),
-    accounts: readJson(categorisedFile),
+    accounts: readJson(categorisedFile).filter(
+      (account) => !BAND_ACCOUNTS.has(account.username.toLowerCase()),
+    ),
     fans: readJson(followingFile).filter((fan) => !fan.error),
     profiles,
   };
@@ -211,7 +223,10 @@ function canBeNamed(account, followers) {
 // Individual accounts with their classification organised by most -> least folllowed
 function topAccounts(accounts, profiles) {
   return accounts
-    .map((account) => ({ account, followers: profiles?.[account.id]?.followers ?? null }))
+    .map((account) => ({
+      account,
+      followers: profiles?.[account.id]?.followers ?? null,
+    }))
     .filter(({ account, followers }) => canBeNamed(account, followers))
     .map(({ account, followers }) => ({
       username: account.username,
@@ -347,7 +362,7 @@ async function main() {
 
   printTable("Categories", summary.categories);
   printTable("Subcategories", summary.subcategories);
-  printTable("Teams", summary.teams);
+  // printTable("Teams", summary.teams);
 
   if (summary.microInfluencers.length > 0) {
     console.log("\nMicro-influencers (3k–100k followers)");
