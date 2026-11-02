@@ -58,6 +58,63 @@ function ShareBars({ title, description, rows, limit = 10 }) {
   );
 }
 
+function formatFollowers(value) {
+  if (value == null) return "—";
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}m`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
+  return String(value);
+}
+
+// Accounts with 3k–100k followers that a notable share of fans follow: rising
+// bands, local creators and venues — the most actionable list for collabs
+function MicroInfluencers({ accounts }) {
+  if (!accounts?.length) return null;
+
+  return (
+    <section className={styles.panel}>
+      <h2 className={styles.panelTitle}>Rising accounts your fans follow</h2>
+      <p className={styles.panelDescription}>
+        Accounts with 3k–100k followers, ranked by the share of analysed fans who follow them.
+      </p>
+
+      <ol className={styles.risingList}>
+        {accounts.map((account) => (
+          <li key={account.username} className={styles.risingRow}>
+            <span className={styles.accountName}>
+              <a
+                href={`https://www.instagram.com/${account.username}/`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {account.full_name?.trim() || `@${account.username}`}
+              </a>
+              <em>
+                {[
+                  account.category !== "unknown" ? capitalise(account.category) : null,
+                  account.subcategory,
+                  `${formatFollowers(account.followers)} followers`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </em>
+            </span>
+            <span className={styles.barTrack}>
+              <span
+                className={styles.barFill}
+                style={{ width: `${Math.max(account.share * 100, 1)}%` }}
+              />
+            </span>
+            <span className={styles.barValue}>
+              {formatPercent(account.share)}
+              <em>{account.fans} fans</em>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 function AccountsByCategory({ accountsByCategory }) {
   const categories = Object.entries(accountsByCategory ?? {});
   if (categories.length === 0) return null;
@@ -176,14 +233,12 @@ export default function FanAnalysis({ engagement, summary }) {
           <div className={styles.chartGrid}>
             <ShareBars title="Categories" rows={summary.categories} />
             <ShareBars title="Interests" rows={summary.subcategories} />
-            <ShareBars
-              title="Teams"
-              description="Teams of followed sports accounts. Players' teams come from the model's knowledge and may be out of date."
-              rows={summary.teams}
-            />
           </div>
 
-          <AccountsByCategory accountsByCategory={summary.accountsByCategory} />
+          <div className={styles.stack}>
+            <MicroInfluencers accounts={summary.microInfluencers} />
+            <AccountsByCategory accountsByCategory={summary.accountsByCategory} />
+          </div>
         </section>
       )}
     </div>

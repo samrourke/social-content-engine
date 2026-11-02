@@ -36,3 +36,7 @@ next-env.d.ts
 #Backups
 
 backups/
+
+
+#WIP files and copies
+scripts/fanAnalysis/06_summarise_copy.js

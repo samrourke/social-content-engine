@@ -1,3 +1,20 @@
+// scripts/fanAnalysis/05_categoriseSharedAccounts.js
+//
+// Stage 5 of the fan analysis: asks OpenAI to categorise each account that
+// several fans follow (from 04), e.g. "music artist / indie / alternative".
+// Sensitive accounts (religion, politics, sexuality, health) are dropped here,
+// so they never reach a total.
+//
+// Uses the matching ig-account-profiles file from 04b when there is one, so the
+// model sees each account's bio, business category and follower count as well
+// as its name — far fewer "unknown"s for smaller accounts it doesn't recognise.
+//
+// Run with:
+//   node scripts/fanAnalysis/05_categoriseSharedAccounts.js
+//
+// Required env vars (already in .env):
+//   OPENAI_API_KEY=
+
 import dotenv from "dotenv";
 import OpenAI from "openai";
 import fs from "fs";
@@ -6,11 +23,17 @@ import path from "path";
 dotenv.config({ path: ".env" });
 
 const openaiApiKey = process.env.OPENAI_API_KEY;
+if (!openaiApiKey) {
+  throw new Error("Missing OPENAI_API_KEY.");
+}
 const openai = new OpenAI({ apiKey: openaiApiKey });
 
-if (!openaiApiKey) {
-  throw new Error("Missing OPENAI_API_KEY or Supabase credentials.");
-}
+const FAN_ANALYSIS_DIR = "output/fan-analysis";
+// How many accounts to categorise at once. Each request is independent, so
+// running several together cuts ~500 accounts from ~25 minutes to ~3
+const CONCURRENCY = 8;
+// Bios can be long; the first few hundred characters are plenty to categorise
+const MAX_BIO_LENGTH = 300;
 
 //music artist, venue/festival,
 // music media, brand/fashion,
@@ -91,7 +114,24 @@ const categorySchema = {
   },
   required: ["category", "subcategory", "team", "sensitive"],
 };
-async function classifyPage(account) {
+// The text the model sees for one account
+function describeAccount(account, profile) {
+  const lines = [
+    `Username: @${account.username}`,
+    `Full name: ${account.full_name || "(none)"}`,
+    `Verified: ${account.is_verified}`,
+  ];
+  if (profile) {
+    if (profile.followers != null) lines.push(`Followers: ${profile.followers}`);
+    if (profile.business_category) lines.push(`Business category: ${profile.business_category}`);
+    if (profile.biography) {
+      lines.push(`Bio: ${profile.biography.slice(0, MAX_BIO_LENGTH).replace(/\s+/g, " ")}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+async function classifyPage(account, profile) {
   const response = await openai.responses.parse({
     model: "gpt-5-mini",
 
@@ -99,7 +139,10 @@ async function classifyPage(account) {
       {
         role: "system",
         content: `
-You classify Instagram accounts from their username, full name and verified status.
+You classify Instagram accounts from their username, full name, verified status
+and, when given, their bio, Instagram business category and follower count.
+The bio and business category are usually the best evidence for smaller accounts
+you don't recognise (e.g. a business category of "Musician/band").
 
 Choose exactly one category:
 ${Object.entries(CATEGORY_DESCRIPTIONS)
@@ -126,7 +169,7 @@ don't guess: return "unknown".
       },
       {
         role: "user",
-        content: `Username: @${account.username}\nFull name: ${account.full_name}\nVerified: ${account.is_verified}`,
+        content: describeAccount(account, profile),
       },
     ],
 
@@ -142,8 +185,39 @@ don't guess: return "unknown".
   return response.output_parsed;
 }
 
+// The 04b profiles for the same run, keyed by account id, or null if 04b
+// hasn't been run (categorising then falls back to names only)
+function loadProfiles(sharedFile) {
+  const profilesFile = sharedFile.replace("ig-shared-accounts-", "ig-account-profiles-");
+  const profilesPath = path.join(FAN_ANALYSIS_DIR, profilesFile);
+  if (!fs.existsSync(profilesPath)) {
+    console.warn(`No ${profilesFile} — categorising from names only. Run 04b first for better results.`);
+    return null;
+  }
+  console.log(`Using profiles from ${profilesFile}`);
+  return JSON.parse(fs.readFileSync(profilesPath, "utf8")).profiles;
+}
+
+// Runs worker(item) for every item, at most `limit` at a time, keeping results
+// in the same order as items
+async function mapWithConcurrency(items, limit, worker) {
+  const results = new Array(items.length);
+  let next = 0;
+
+  async function runNext() {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await worker(items[index], index);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runNext));
+  return results;
+}
+
 async function categoriseSharedResults() {
-  const INSTA_ENGAGEMENT_DIR = "output/fan-analysis";
+  const INSTA_ENGAGEMENT_DIR = FAN_ANALYSIS_DIR;
 
   const ANALYSIS_FILES = fs
     .readdirSync(INSTA_ENGAGEMENT_DIR)
@@ -158,56 +232,36 @@ async function categoriseSharedResults() {
   }
 
   const latestFile = ANALYSIS_FILES.sort().at(-1);
+  console.log(`Categorising ${latestFile}`);
 
   const raw = JSON.parse(
     fs.readFileSync(path.join(INSTA_ENGAGEMENT_DIR, latestFile), "utf8"),
   );
+  const profiles = loadProfiles(latestFile);
 
-  const taggedProfiles = [];
-
-  let sensitiveCount = 0;
-  let failedCount = 0;
-
-  for (const profile of raw) {
+  let done = 0;
+  const outcomes = await mapWithConcurrency(raw, CONCURRENCY, async (account) => {
     try {
-      const classificationResult = await classifyPage(profile);
-
-      if (classificationResult.sensitive) {
-        sensitiveCount += 1;
-        continue;
-      }
-
-      taggedProfiles.push({ ...profile, classification: classificationResult });
+      const classification = await classifyPage(account, profiles?.[account.id]);
+      return { account, classification };
     } catch (err) {
-      failedCount += 1;
-      console.error(
-        `[Error] Failed to tag ${profile.username}: ${err.message}`,
-      );
+      console.error(`[Error] Failed to tag ${account.username}: ${err.message}`);
+      return { account, error: err.message };
+    } finally {
+      done += 1;
+      if (done % 50 === 0 || done === raw.length) {
+        console.log(`  ${done}/${raw.length} categorised`);
+      }
     }
-  }
+  });
 
-  // for (const profile of raw) {
-  //   try {
-  //     const classificationResult = await classifyPage(profile);
-
-  //     const categorisedProfile = {
-  //       ...profile,
-  //       classification: classificationResult,
-  //     };
-  //     if (!classificationResult.sensitive) {
-  //       taggedProfiles.push(categorisedProfile);
-  //     }
-
-  //     console.log(
-  //       "content pillar for ",
-  //       profile.username,
-  //       "is, ",
-  //       classificationResult,
-  //     );
-  //   } catch (err) {
-  //     console.error(`[Error] Failed to tag`, profile.username, "Error: ", err);
-  //   }
-  // }
+  const failedCount = outcomes.filter((outcome) => outcome.error).length;
+  const sensitiveCount = outcomes.filter(
+    (outcome) => outcome.classification?.sensitive,
+  ).length;
+  const taggedProfiles = outcomes
+    .filter((outcome) => outcome.classification && !outcome.classification.sensitive)
+    .map(({ account, classification }) => ({ ...account, classification }));
 
   const categorisationPath = path.join(
     INSTA_ENGAGEMENT_DIR,
@@ -236,4 +290,7 @@ async function categoriseSharedResults() {
   console.table(categoryCounts);
 }
 
-categoriseSharedResults();
+categoriseSharedResults().catch((err) => {
+  console.error("05_categoriseSharedAccounts.js failed:", err.message);
+  process.exit(1);
+});

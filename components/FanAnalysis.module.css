@@ -101,7 +101,7 @@
 
 .chartGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -183,6 +183,34 @@
 }
 
 /* ---------------------------
+   Rising accounts
+---------------------------- */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.risingList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 32px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.risingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) 4.5rem;
+  gap: 10px;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+}
+
+/* ---------------------------
    Accounts by category
 ---------------------------- */
 
@@ -249,7 +277,8 @@
 ---------------------------- */
 
 @media (max-width: 1000px) {
-  .chartGrid {
+  .chartGrid,
+  .risingList {
     grid-template-columns: 1fr;
   }
 
@@ -269,5 +298,9 @@
 
   .barRow {
     grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) 4rem;
+  }
+
+  .risingRow {
+    grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) 4rem;
   }
 }

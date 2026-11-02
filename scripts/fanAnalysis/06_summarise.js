@@ -7,6 +7,10 @@
 // Run with:
 //   node scripts/fanAnalysis/06_summarise.js
 //
+// Uses the matching ig-account-profiles file from 04b, when there is one, to add
+// follower counts and flag micro-influencers: accounts with 3k–100k followers
+// that several fans follow (rising bands, local creators, small venues).
+//
 // Saves the summary locally (ig-summary-<stamp>.json) and to the fan_analysis
 // table in Supabase, which the live /fan-analysis page reads. Re-running it on
 // the same data updates that run's row rather than adding another.
@@ -28,6 +32,13 @@ dotenv.config({ path: ".env" });
 const FAN_ANALYSIS_DIR = "output/fan-analysis";
 const ARTIST = process.env.INSTAGRAM_USERNAME ?? "circawaves";
 const PLATFORM = "instagram";
+
+// Follower-count tiers. Accounts under MIN_NAMED_FOLLOWERS that aren't verified
+// could be private individuals, so they count towards totals but aren't named
+const MIN_NAMED_FOLLOWERS = 3000;
+const MICRO_MAX_FOLLOWERS = 100000;
+const MID_MAX_FOLLOWERS = 1000000;
+const MICRO_INFLUENCERS_SHOWN = 30;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -68,12 +79,36 @@ function loadInputs() {
     );
   }
 
+  // Follower counts etc. from 04b, if it has been run for this data
+  const profilesFile = categorisedFile.replace(
+    "ig-accounts-categorised-",
+    "ig-account-profiles-",
+  );
+  const profiles = fs.existsSync(path.join(FAN_ANALYSIS_DIR, profilesFile))
+    ? readJson(profilesFile).profiles
+    : null;
+
   console.log(`Summarising ${categorisedFile} with ${followingFile}`);
+  console.log(
+    profiles
+      ? `Adding follower counts from ${profilesFile}`
+      : `No ${profilesFile} — run 04b for follower counts and micro-influencers`,
+  );
+
   return {
     stamp: categorisedFile.replace("ig-accounts-categorised-", ""),
     accounts: readJson(categorisedFile),
     fans: readJson(followingFile).filter((fan) => !fan.error),
+    profiles,
   };
+}
+
+function tierFor(followers) {
+  if (followers == null) return null;
+  if (followers < MIN_NAMED_FOLLOWERS) return "personal";
+  if (followers < MICRO_MAX_FOLLOWERS) return "micro";
+  if (followers < MID_MAX_FOLLOWERS) return "mid";
+  return "macro";
 }
 
 function buildClassificationLookup(accounts) {
@@ -81,7 +116,6 @@ function buildClassificationLookup(accounts) {
   for (const account of accounts) {
     lookup.set(account.id, account.classification);
   }
-  console.log("look up ", lookup);
   return lookup;
 }
 
@@ -163,28 +197,35 @@ function toShares(countMap, totalFans) {
     .sort((a, b) => b.fans - a.fans);
 }
 
+// Whether an account can be listed by name. Verified accounts and accounts with
+// MIN_NAMED_FOLLOWERS+ followers are public figures or businesses; smaller
+// unverified ones could be private individuals, so they still count towards the
+// totals but aren't named. Without follower data, fall back to "the model
+// recognised it"
+function canBeNamed(account, followers) {
+  if (account.is_verified) return true;
+  if (followers != null) return followers >= MIN_NAMED_FOLLOWERS;
+  return account.classification.category !== "unknown";
+}
+
 // Individual accounts with their classification organised by most -> least folllowed
-function topAccounts(accounts) {
-  return (
-    accounts
-      // Only name accounts that are verified or that the model recognised. An
-      // unverified "unknown" account could be a private individual, so it still
-      // counts towards the category totals but isn't listed by name
-      .filter(
-        (account) =>
-          account.is_verified || account.classification.category !== "unknown",
-      )
-      .map((account) => ({
-        username: account.username,
-        full_name: account.full_name,
-        fans: account.fans,
-        share: account.share,
-        category: account.classification.category,
-        subcategory: account.classification.subcategory,
-        team: account.classification.team,
-      }))
-      .sort((a, b) => b.fans - a.fans)
-  );
+function topAccounts(accounts, profiles) {
+  return accounts
+    .map((account) => ({ account, followers: profiles?.[account.id]?.followers ?? null }))
+    .filter(({ account, followers }) => canBeNamed(account, followers))
+    .map(({ account, followers }) => ({
+      username: account.username,
+      full_name: account.full_name,
+      is_verified: account.is_verified,
+      followers,
+      tier: tierFor(followers),
+      fans: account.fans,
+      share: account.share,
+      category: account.classification.category,
+      subcategory: account.classification.subcategory,
+      team: account.classification.team,
+    }))
+    .sort((a, b) => b.fans - a.fans);
 }
 
 //categories followed organised most -> least
@@ -268,15 +309,10 @@ async function saveToSupabase(stamp, summary, engagement) {
 }
 
 async function main() {
-  const { stamp, accounts, fans } = loadInputs();
+  const { stamp, accounts, fans, profiles } = loadInputs();
   const lookup = buildClassificationLookup(accounts);
   const counts = countFans(fans, lookup);
-  const accountRows = topAccounts(accounts);
-
-  console.log(
-    "shares for main cateogories ",
-    toShares(counts.category, fans.length),
-  );
+  const accountRows = topAccounts(accounts, profiles);
 
   const summary = {
     fansAnalysed: fans.length,
@@ -286,6 +322,12 @@ async function main() {
     teams: toShares(counts.team, fans.length),
     accounts: accountRows,
     accountsByCategory: topAccountsByCategory(accountRows),
+    // Rising accounts: big enough to be public, small enough to be approachable,
+    // and followed by a notable share of these fans. accountRows is already
+    // sorted by fans, so these are the most-followed first
+    microInfluencers: accountRows
+      .filter((row) => row.tier === "micro")
+      .slice(0, MICRO_INFLUENCERS_SHOWN),
   };
 
   const summaryPath = path.join(FAN_ANALYSIS_DIR, `ig-summary-${stamp}`);
@@ -306,6 +348,19 @@ async function main() {
   printTable("Categories", summary.categories);
   printTable("Subcategories", summary.subcategories);
   printTable("Teams", summary.teams);
+
+  if (summary.microInfluencers.length > 0) {
+    console.log("\nMicro-influencers (3k–100k followers)");
+    console.table(
+      summary.microInfluencers.slice(0, 15).map((row) => ({
+        username: row.username,
+        followers: row.followers,
+        fans: row.fans,
+        share: `${Math.round(row.share * 100)}%`,
+        category: row.category,
+      })),
+    );
+  }
   console.log(`Saved to ${summaryPath}`);
 
   const engagement = getEngagementStats();

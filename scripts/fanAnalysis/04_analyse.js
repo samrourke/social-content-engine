@@ -6,6 +6,13 @@ export function AnalyseFans() {
 
   const ARTIST_USERNAME = "circawaves";
 
+  const BAND_ACCOUNTS = new Set([
+    "circawaves",
+    "franciswaves",
+    "colindjones",
+    "harpomilk",
+  ]);
+
   const MIN_FANS = 8; // Set for two for low tests but could be set higher for real world
 
   const ANALYSIS_FILES = fs
@@ -51,7 +58,7 @@ export function AnalyseFans() {
   for (const fan of usableFans) {
     for (const followed of fan.following) {
       if (fan.error) continue;
-      if (followed.username === ARTIST_USERNAME) continue;
+      if (BAND_ACCOUNTS.has(followed.username.toLowerCase())) continue;
       countFollow(followed);
     }
   }
