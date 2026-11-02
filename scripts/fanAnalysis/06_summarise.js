@@ -155,7 +155,7 @@ Returns a map for each cateogry, sub category and team with total fans like:
   }
 } */
 
-// calculate what percentage of each category, sub cateogry and team is followed by each fan
+// calculate what percentage of fans follow each category, sub cateogry amd team
 
 function toShares(countMap, totalFans) {
   return [...countMap]
