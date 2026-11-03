@@ -79,7 +79,18 @@ The baseline includes an `ensure_rls` event trigger (function `rls_auto_enable`)
 
 ### Phase 1: Tenancy tables and `client_id` (1–2 days)
 
-New migration, created with `npx supabase migration new tenancy`:
+**Run this phase in stages ("expand, then contract")** so the live scripts and cron jobs keep working throughout:
+
+1. **Stage 1, additive (safe on the live database):**
+   - [x] `20261103115946_create_clients.sql`: `clients` table with Circa Waves (slug `circawaves`)
+   - [ ] `20261103122412_add_client_id.sql`: `default_client_id()` function, plus a nullable `client_id` with that default and an index on the 7 kept tables
+   - [ ] `20261103125109_drop_unused_tables.sql`: drop `content_sources` and `yt_content` (CSV copies in `backups/2026-11-03/`)
+2. **Stage 2, code:** the scripts set `client_id` themselves and use the new `onConflict` columns (Phase 6, brought forward).
+3. **Stage 3, tighten:** drop the defaults and `default_client_id()`, set `client_id not null`, and swap in the per-client unique constraints below. Decide whether `fan_analysis.artist` is replaced by `client_id`.
+
+The SQL below is the original all-in-one sketch, kept for reference. The live migrations follow the stages above.
+
+Original sketch:
 
 ```sql
 create table clients (
@@ -129,7 +140,6 @@ create index on tiktok_videos (client_id);
   ```
   Do the same for `instagram_discoveries` (`instagram_discoveries_platform_video_id_key`) and for both uniques on `content_discoveries`: `content_discoveries_platform_platform_video_id_key` becomes `unique (client_id, platform, platform_video_id)`, and `content_discoveries_source_url_key` becomes `unique (client_id, source_url)`. Constraint names are taken from the 27 October 2026 schema dump.
 - [ ] Update every `upsert(..., { onConflict: "platform_video_id" })` in `scripts/` to `onConflict: "client_id,platform_video_id"`.
-- [ ] Rename `circa_full_content` → `full_content`. To avoid breaking the scripts mid-change, leave a view behind for a while: `create view circa_full_content as select * from full_content;`. Update `TABLE_NAME` in `downloadContent.js`, `removeOrphanedDownloads.js` and `keepAlive.cjs`, plus the `.from()` calls in `internetSearch.js`, `instagramSearch.js` and `importDiscoveries.js`, then drop the view.
 - [ ] Add your own user to `platform_admins` once you have an account (Phase 2).
 
 **Done when:** every row belongs to Circa Waves through `client_id` and nothing visible has changed.
@@ -179,7 +189,7 @@ alter table tiktok_videos enable row level security;
 create policy "members read" on tiktok_videos for select using (is_member(client_id));
 ```
 
-- [ ] RLS is already on for the 9 existing tables (as of the 27 October 2026 dump), so this step only applies to new tables (`clients`, `platform_admins`, `memberships`, `calendar_posts`). Keep RLS on for **every** table, including admin-only ones (`content_discoveries`, `instagram_discoveries`, `discovery_search_state`, `full_content`). Give the admin-only tables **no** policies, so only the service role can touch them.
+- [ ] RLS is already on for the 9 existing tables (as of the 27 October 2026 dump), so this step only applies to new tables (`clients`, `platform_admins`, `memberships`, `calendar_posts`). Keep RLS on for **every** table, including admin-only ones (`content_discoveries`, `instagram_discoveries`, `discovery_search_state`, `circa_full_content`). Give the admin-only tables **no** policies, so only the service role can touch them.
 - [ ] `clients`: members can read their own row (`using (is_member(id))`).
 - [ ] `memberships`: users can read their own rows (`using (user_id = auth.uid())`).
 - [ ] Run the Supabase **Security Advisor** (Dashboard → Advisors). It flags tables with RLS turned off.
@@ -271,6 +281,15 @@ Only once path-based routing is solid.
 - [ ] In `proxy.ts`, read the `host` header. If it's `slug.yourdomain.com`, `NextResponse.rewrite` to `/slug/…`. The pages don't change.
 - [ ] Set the Supabase auth cookie domain to `.yourdomain.com` if you want one login across subdomains. Otherwise each subdomain logs in separately, which also isolates clients more strongly.
 - [ ] Add each subdomain to Supabase's allowed redirect URLs.
+
+### Final clean-up: rename `circa_full_content` → `selected_content`
+
+Postponed from Phase 1 (decided 3 November 2026). The table holds the content chosen for the archive, so the band-specific name no longer fits. The rename can't go in a migration on its own, because six scripts use the old name, two of them under cron: `keepAlive.cjs` hourly and `internetSearch.js` fortnightly. They would fail as soon as it's pushed.
+
+- [ ] One migration: `alter table circa_full_content rename to selected_content;`. Also rename `idx_circa_full_content_client_id` and the `circa_full_content_*` constraints (`alter index … rename to …`, `alter table … rename constraint … to …`).
+- [ ] If `main` or anything else might still run old code, add a temporary view in the same migration: `create view circa_full_content with (security_invoker = true) as select * from selected_content;`. `security_invoker` makes the view respect RLS.
+- [ ] In the same commit, update `TABLE_NAME` in `downloadContent.js`, `removeOrphanedDownloads.js` and `keepAlive.cjs`, the `.from()` calls in `internetSearch.js`, `instagramSearch.js` and `importDiscoveries.js`, and the log message in `importDiscoveries.js`.
+- [ ] Push the migration and the code together, check the next keep-alive run in `~/logs/supabaseKeepAlive.log`, then drop the view in a later migration.
 
 ---
 
