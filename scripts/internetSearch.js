@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import loadClient from "./lib/loadClient.js";
 
 dotenv.config({ path: ".env" });
 
@@ -17,12 +18,17 @@ console.log("Today's Date: " + new Date().toString());
 console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
+const client = await loadClient(supabase);
+
+const nameLower = client.name.toLowerCase(); // "circa waves"
+const nameCompact = nameLower.replace(/\s+/g, ""); // "circawaves" (for hashtags)
 
 async function getSearchState(query) {
   const { data, error } = await supabase
     .from("discovery_search_state")
     .select("*")
     .eq("query", query)
+    .eq("client_id", client.id) // Ensure we only fetch state for this client
     .maybeSingle();
 
   if (error) throw error;
@@ -33,16 +39,20 @@ async function getSearchState(query) {
 const PUBLISHED_AFTER_OVERLAP_DAYS = 2;
 
 const SEARCH_QUERIES = [
-  "Circa Waves",
-  '"Circa Waves" interview',
-  '"Circa Waves" live',
-  '"Circa Waves" backstage',
-  '"Circa Waves" festival',
-  '"Circa Waves" acoustic',
-  '"Circa Waves" session',
-  '"Circa Waves" BBC',
-  '"Circa Waves" NME',
-  '"Circa Waves" Radio X',
+  `${client.name}`,
+  `"${client.name}" interview`,
+  `"${client.name}" live`,
+  `"${client.name}" backstage`,
+  `"${client.name}" festival`,
+  `"${client.name}" acoustic`,
+  `"${client.name}" session`,
+  `"${client.name}" official`,
+  `"${client.name}" gig`,
+  `"${client.name}" BBC`,
+  `"${client.name}" NME`,
+  `"${client.name}" Radio X`,
+  `"${client.name}" full set`,
+  `"${client.name}" tour`,
 ];
 
 function classifyContent(title = "", description = "") {
@@ -96,8 +106,10 @@ function calculateDiscoveryScore(video, query) {
 
   let score = 0;
 
-  if (title.includes("circa waves")) score += 40;
-  if (combined.includes("circa waves")) score += 20;
+  if (title.includes(`${nameLower}`) || title.includes(`${nameCompact}`))
+    score += 40;
+  if (combined.includes(`${nameLower}`) || combined.includes(`${nameCompact}`))
+    score += 20;
 
   if (
     combined.includes("interview") ||
@@ -109,11 +121,14 @@ function calculateDiscoveryScore(video, query) {
     score += 15;
   }
 
-  if (query.toLowerCase().includes("circa waves")) {
+  if (
+    query.toLowerCase().includes(`${nameLower}`) ||
+    query.toLowerCase().includes(`${nameCompact}`)
+  ) {
     score += 5;
   }
 
-  if (channel.includes("circa waves")) {
+  if (channel.includes(nameLower) || channel.includes(nameCompact)) {
     score += 10;
   }
 
@@ -147,9 +162,12 @@ function normaliseYouTubeUrl(url) {
 }
 
 async function getExistingSourceUrls() {
+  //fetch all existing normalised_source_url values from the circa_full_content table for the current client
+  //circa_full_content table will be renamed later (approved_content or similar)
   const { data, error } = await supabase
     .from("circa_full_content")
-    .select("normalised_source_url");
+    .select("normalised_source_url")
+    .eq("client_id", client.id);
 
   if (error) {
     throw error;
@@ -223,7 +241,7 @@ function isRelevantResult(video) {
 
   const text = `${title} ${description} ${channel}`;
 
-  return text.includes("circa waves") || text.includes("circawaves");
+  return text.includes(nameLower) || text.includes(nameCompact);
 }
 
 async function discoveryAlreadyExists(videoId, sourceUrl) {
@@ -231,6 +249,7 @@ async function discoveryAlreadyExists(videoId, sourceUrl) {
     .from("content_discoveries")
     .select("id")
     .or(`platform_video_id.eq.${videoId},source_url.eq.${sourceUrl}`)
+    .eq("client_id", client.id)
     .limit(1);
 
   if (error) {
@@ -278,6 +297,7 @@ async function saveDiscovery(video, query, normalisedSourceUrl) {
     discovery_score: discoveryScore,
     suggested_content_type: contentType,
     review_status: "pending",
+    client_id: client.id,
   });
 
   if (error) {
@@ -378,18 +398,19 @@ async function runDiscovery() {
       // 4. Save where this query got to. updated_at marks the start of this
       // run so the next incremental search picks up from here.
       const nextState = isIncremental
-        ? { query, updated_at: runStartedAt }
+        ? { query, updated_at: runStartedAt, client_id: client.id }
         : {
             query,
             next_page_token: nextPageToken,
             pages_searched: (state?.pages_searched ?? 0) + 3,
             completed: nextPageToken === null,
             updated_at: runStartedAt,
+            client_id: client.id,
           };
 
       const { error: stateError } = await supabase
         .from("discovery_search_state")
-        .upsert(nextState, { onConflict: "query" });
+        .upsert(nextState, { onConflict: "client_id,query" });
 
       if (stateError) {
         throw stateError;
