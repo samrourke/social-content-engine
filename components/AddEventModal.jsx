@@ -37,12 +37,34 @@ const formInputFields = [
     wide: true,
   },
   {
+    name: "dropbox",
+    label: "Dropbox Link",
+    type: "text",
+    placeholder: "Dropbox link to content",
+    wide: true,
+  },
+  {
     name: "cta",
-    label: "CTA / Link / Sound",
+    label: "CTA",
+    type: "text",
+    placeholder: "CTA for post...",
+    wide: true,
+  },
+  {
+    name: "link",
+    label: "Link",
     type: "text",
     placeholder: "https://...",
     wide: true,
   },
+  {
+    name: "sound",
+    label: "Sound",
+    type: "text",
+    placeholder: "",
+    wide: true,
+  },
+
   { name: "tags", label: "Tags", type: "textarea", placeholder: "@handle" },
   {
     name: "hashtags",

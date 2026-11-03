@@ -33,8 +33,18 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+<<<<<<< HEAD
 # Database backups (contain real data, never commit)
 backups/
 
 # Supabase CLI local state (project link, connection info)
 supabase/.temp/
+=======
+#Backups
+
+backups/
+
+
+#WIP files and copies
+scripts/fanAnalysis/06_summarise_copy.js
+>>>>>>> main

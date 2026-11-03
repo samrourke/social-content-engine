@@ -18,7 +18,10 @@ const FIELD_LIMITS = {
   time: 5,
   content: 2000,
   text: 2000,
+  dropbox: 500,
   cta: 500,
+  link: 200,
+  sound: 200,
   tags: 500,
   hashtags: 500,
   purpose: 20,
@@ -75,6 +78,7 @@ function validatePost(formData) {
     return { error: "Please choose a date within the next two years." };
   }
 
+  console.log("form post ", post);
   return { post: { ...post, date } };
 }
 

@@ -9,7 +9,10 @@ import styles from "./CalendarModal.module.css";
 const FIELDS = [
   { key: "content", label: "Content" },
   { key: "text", label: "Text / VO" },
-  { key: "cta", label: "CTA / Link / Sound" },
+  { key: "dropbox", label: "Drobox Link" },
+  { key: "cta", label: "CTA" },
+  { key: "link", label: "Link" },
+  { key: "sound", label: "Sound" },
   { key: "tags", label: "Tags" },
   { key: "hashtags", label: "Hashtags" },
   { key: "niche", label: "Niche" },
