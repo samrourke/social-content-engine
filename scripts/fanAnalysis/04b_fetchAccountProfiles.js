@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
 import { ApifyClient } from "apify-client";
+import { createClient } from "@supabase/supabase-js";
+import loadClient from "./lib/loadClient.js";
 
 dotenv.config({ path: ".env" });
 
@@ -20,9 +22,12 @@ if (!apifyToken) throw new Error("Missing APIFY_API_TOKEN.");
 const apify = new ApifyClient({ token: apifyToken });
 const ACTOR_ID = "apify/instagram-profile-scraper";
 
+const supabase = createClient(supabaseUrl, serviceRoleKey);
+const client = await loadClient(supabase);
+
 console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
 console.log(
-  `Fetching Account Profiles for accounts of interest followed by multiple fans of ${process.env.INSTAGRAM_USERNAME ?? "circawaves"}...`,
+  `Fetching Account Profiles for accounts of interest followed by multiple fans of ${client.instagram_username}...`,
 );
 console.log("Today's Date: " + new Date().toString());
 console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");

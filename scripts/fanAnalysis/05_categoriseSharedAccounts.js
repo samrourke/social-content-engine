@@ -28,6 +28,7 @@ if (!openaiApiKey) {
 }
 const openai = new OpenAI({ apiKey: openaiApiKey });
 
+//TODO: make per-client folder for analysis files!
 const FAN_ANALYSIS_DIR = "output/fan-analysis";
 // How many accounts to categorise at once. Each request is independent, so
 // running several together cuts ~500 accounts from ~25 minutes to ~3
@@ -122,10 +123,14 @@ function describeAccount(account, profile) {
     `Verified: ${account.is_verified}`,
   ];
   if (profile) {
-    if (profile.followers != null) lines.push(`Followers: ${profile.followers}`);
-    if (profile.business_category) lines.push(`Business category: ${profile.business_category}`);
+    if (profile.followers != null)
+      lines.push(`Followers: ${profile.followers}`);
+    if (profile.business_category)
+      lines.push(`Business category: ${profile.business_category}`);
     if (profile.biography) {
-      lines.push(`Bio: ${profile.biography.slice(0, MAX_BIO_LENGTH).replace(/\s+/g, " ")}`);
+      lines.push(
+        `Bio: ${profile.biography.slice(0, MAX_BIO_LENGTH).replace(/\s+/g, " ")}`,
+      );
     }
   }
   return lines.join("\n");
@@ -188,10 +193,15 @@ don't guess: return "unknown".
 // The 04b profiles for the same run, keyed by account id, or null if 04b
 // hasn't been run (categorising then falls back to names only)
 function loadProfiles(sharedFile) {
-  const profilesFile = sharedFile.replace("ig-shared-accounts-", "ig-account-profiles-");
+  const profilesFile = sharedFile.replace(
+    "ig-shared-accounts-",
+    "ig-account-profiles-",
+  );
   const profilesPath = path.join(FAN_ANALYSIS_DIR, profilesFile);
   if (!fs.existsSync(profilesPath)) {
-    console.warn(`No ${profilesFile} — categorising from names only. Run 04b first for better results.`);
+    console.warn(
+      `No ${profilesFile} — categorising from names only. Run 04b first for better results.`,
+    );
     return null;
   }
   console.log(`Using profiles from ${profilesFile}`);
@@ -212,7 +222,9 @@ async function mapWithConcurrency(items, limit, worker) {
     }
   }
 
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runNext));
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, runNext),
+  );
   return results;
 }
 
@@ -240,27 +252,38 @@ async function categoriseSharedResults() {
   const profiles = loadProfiles(latestFile);
 
   let done = 0;
-  const outcomes = await mapWithConcurrency(raw, CONCURRENCY, async (account) => {
-    try {
-      const classification = await classifyPage(account, profiles?.[account.id]);
-      return { account, classification };
-    } catch (err) {
-      console.error(`[Error] Failed to tag ${account.username}: ${err.message}`);
-      return { account, error: err.message };
-    } finally {
-      done += 1;
-      if (done % 50 === 0 || done === raw.length) {
-        console.log(`  ${done}/${raw.length} categorised`);
+  const outcomes = await mapWithConcurrency(
+    raw,
+    CONCURRENCY,
+    async (account) => {
+      try {
+        const classification = await classifyPage(
+          account,
+          profiles?.[account.id],
+        );
+        return { account, classification };
+      } catch (err) {
+        console.error(
+          `[Error] Failed to tag ${account.username}: ${err.message}`,
+        );
+        return { account, error: err.message };
+      } finally {
+        done += 1;
+        if (done % 50 === 0 || done === raw.length) {
+          console.log(`  ${done}/${raw.length} categorised`);
+        }
       }
-    }
-  });
+    },
+  );
 
   const failedCount = outcomes.filter((outcome) => outcome.error).length;
   const sensitiveCount = outcomes.filter(
     (outcome) => outcome.classification?.sensitive,
   ).length;
   const taggedProfiles = outcomes
-    .filter((outcome) => outcome.classification && !outcome.classification.sensitive)
+    .filter(
+      (outcome) => outcome.classification && !outcome.classification.sensitive,
+    )
     .map(({ account, classification }) => ({ ...account, classification }));
 
   const categorisationPath = path.join(

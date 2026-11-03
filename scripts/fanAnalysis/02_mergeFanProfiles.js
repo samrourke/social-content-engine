@@ -8,6 +8,8 @@ export function mergeProfiles() {
   const LIKE_WEIGHT = 1;
   const COMMENT_WEIGHT = 3;
 
+  //TODO: make per-client folder for analysis files!
+
   const INSTA_ENGAGEMENT_DIR = "output/fan-analysis";
 
   const ANALYSIS_FILES = fs
