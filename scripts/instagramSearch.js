@@ -37,12 +37,16 @@
 //
 // Requires supabase/migrations/003, 004 and 005 to have been run.
 
+// TODO (Phase 6): BAND_PATTERN, BAND_HANDLE and the song list
+// are Circa Waves-only; pass client details in
+
 import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import dotenv from "dotenv";
 import { ApifyClient } from "apify-client";
 import { createClient } from "@supabase/supabase-js";
+import loadClient from "./lib/loadClient.js";
 import {
   assessRelevance,
   assessSlide,
@@ -52,7 +56,16 @@ import {
 
 dotenv.config({ path: ".env" });
 
+const apifyToken = process.env.APIFY_API_TOKEN;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const APIFY_ACTOR_ID = "apify/instagram-scraper";
+const apify = new ApifyClient({ token: apifyToken });
+const supabase = createClient(supabaseUrl, serviceRoleKey);
+const client = await loadClient(supabase);
+const instaHandle = client.instagram_username; // e.g. pulled from supabase client table "circawaves"
+const nameLower = client.name.toLowerCase(); // "circa waves"
+const nameCompact = nameLower.replace(/\s+/g, ""); // "circawaves" (for hashtags)
 
 // Hashtag pages are ranked "top", not newest-first, so the date cutoff may not
 // stop the scraper early there — the run summary reports whether it did.
@@ -68,20 +81,20 @@ const APIFY_ACTOR_ID = "apify/instagram-scraper";
 // ranking); the scoring in lib/instagramScoring.js sorts what's left.
 const SEARCHES = [
   {
-    label: "#circawaves",
-    url: "https://www.instagram.com/explore/tags/circawaves/",
+    label: `#${nameCompact}`,
+    url: `https://www.instagram.com/explore/tags/${nameCompact}/`,
     limit: 1000,
   },
   {
-    label: "#circawaves reels",
-    url: "https://www.instagram.com/explore/tags/circawaves/",
+    label: `#${nameCompact} reels`,
+    url: `https://www.instagram.com/explore/tags/${nameCompact}/`,
     resultsType: "reels",
     limit: 1000,
   },
   // Watched accounts
   {
-    label: "@circawaves",
-    url: "https://www.instagram.com/circawaves/",
+    label: `@${instaHandle}`,
+    url: `https://www.instagram.com/${instaHandle}/`,
     limit: 30,
     trusted: true,
   },
@@ -103,6 +116,7 @@ const { values: args } = parseArgs({
     backlog: { type: "boolean", default: false },
     only: { type: "string" },
     refresh: { type: "boolean", default: false },
+    client: { type: "string", short: "c" },
   },
 });
 
@@ -116,29 +130,31 @@ const replayFile = args["from-file"];
 const rescore = args.rescore;
 const refresh = args.refresh;
 
-// Statuses --rescore may overwrite: never anything you've reviewed. A split
+// Statuses --rescore may overwrite: never anything reviewed. A split
 // carousel is rescored slide by slide, skipping slides already reviewed.
 const RESCORABLE = new Set(["auto_rejected", "pending", "split"]);
-
-const apifyToken = process.env.APIFY_API_TOKEN;
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
 console.log("RUNNING INSTAGRAM SEARCH SCRIPT");
 console.log("Today's Date: " + new Date().toString());
-if (dryRun) console.log("DRY RUN — nothing will be read from or written to Supabase");
+if (dryRun)
+  console.log(
+    "DRY RUN — Supabase is only used to look up the client; nothing is read or saved",
+  );
 if (replayFile) console.log(`REPLAY — using saved scrape ${replayFile}`);
-if (rescore) console.log("RESCORE — auto-rejected and pending posts will be re-assessed");
-if (refresh) console.log("REFRESH — renewing video links for pending carousel slides");
+if (rescore)
+  console.log("RESCORE — auto-rejected and pending posts will be re-assessed");
+if (refresh)
+  console.log("REFRESH — renewing video links for pending carousel slides");
 console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
 
-if (((!replayFile || refresh) && !apifyToken) || !supabaseUrl || !serviceRoleKey) {
+if (
+  ((!replayFile || refresh) && !apifyToken) ||
+  !supabaseUrl ||
+  !serviceRoleKey
+) {
   throw new Error("Missing APIFY_API_TOKEN or Supabase credentials.");
 }
-
-const apify = new ApifyClient({ token: apifyToken });
-const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 // ---------------------------------------------------------------------------
 // Scraping
@@ -153,6 +169,7 @@ async function getSearchState(search) {
     .from("discovery_search_state")
     .select("*")
     .eq("query", stateKey(search))
+    .eq("client_id", client.id) // Ensure we only fetch state for this client
     .maybeSingle();
 
   if (error) throw error;
@@ -161,12 +178,14 @@ async function getSearchState(search) {
 }
 
 async function saveSearchState(search, runStartedAt) {
-  const { error } = await supabase
-    .from("discovery_search_state")
-    .upsert(
-      { query: stateKey(search), updated_at: runStartedAt },
-      { onConflict: "query" },
-    );
+  const { error } = await supabase.from("discovery_search_state").upsert(
+    {
+      query: stateKey(search),
+      updated_at: runStartedAt,
+      client_id: client.id,
+    },
+    { onConflict: "client_id,query" },
+  );
 
   if (error) throw error;
 }
@@ -205,7 +224,11 @@ function saveRawScrape(search, cutoff, items) {
 
   fs.writeFileSync(
     filePath,
-    JSON.stringify({ search, cutoff, fetchedAt: new Date().toISOString(), items }, null, 2),
+    JSON.stringify(
+      { search, cutoff, fetchedAt: new Date().toISOString(), items },
+      null,
+      2,
+    ),
   );
 
   return filePath;
@@ -256,7 +279,8 @@ function makeTitle(item) {
     .map((line) => line.trim())
     .find(Boolean);
 
-  if (!firstLine) return `Instagram post by @${item.ownerUsername ?? "unknown"}`;
+  if (!firstLine)
+    return `Instagram post by @${item.ownerUsername ?? "unknown"}`;
 
   return firstLine.length > 120 ? `${firstLine.slice(0, 117)}...` : firstLine;
 }
@@ -291,7 +315,9 @@ function toRow(item, search, assessment) {
     video_duration_seconds: item.videoDuration ?? null,
     carousel_video_slides: carouselVideoSlides(item),
     // A lone carousel slide can be played directly, as its position is unknown
-    video_url: item.productType === "carousel_item" ? (item.videoUrl ?? null) : null,
+    video_url:
+      item.productType === "carousel_item" ? (item.videoUrl ?? null) : null,
+    client_id: client.id,
   };
 }
 
@@ -310,6 +336,7 @@ function toSlideRow(item, { child, slide }, search, assessment) {
     thumbnail_url: child.displayUrl ?? item.displayUrl ?? null,
     video_duration_seconds: child.videoDuration ?? null,
     play_count: child.videoPlayCount ?? null,
+    client_id: client.id,
   };
 }
 
@@ -323,9 +350,11 @@ async function getAlreadySeen(shortCodes) {
     const { data, error } = await supabase
       .from("instagram_discoveries")
       .select("platform_video_id, review_status")
-      .in("platform_video_id", shortCodes.slice(start, start + CHUNK));
+      .in("platform_video_id", shortCodes.slice(start, start + CHUNK))
+      .eq("client_id", client.id); // Ensure we only fetch posts for this client
 
-    if (error) throw new Error(`Failed to check existing posts: ${error.message}`);
+    if (error)
+      throw new Error(`Failed to check existing posts: ${error.message}`);
 
     for (const row of data) seen.set(row.platform_video_id, row.review_status);
   }
@@ -336,7 +365,8 @@ async function getAlreadySeen(shortCodes) {
 async function getLibraryUrls() {
   const { data, error } = await supabase
     .from("circa_full_content")
-    .select("normalised_source_url");
+    .select("normalised_source_url")
+    .eq("client_id", client.id);
 
   if (error) throw error;
 
@@ -346,9 +376,10 @@ async function getLibraryUrls() {
 async function insertRows(rows) {
   if (rows.length === 0) return;
 
-  const { error } = await supabase
-    .from("instagram_discoveries")
-    .upsert(rows, { onConflict: "platform_video_id", ignoreDuplicates: true });
+  const { error } = await supabase.from("instagram_discoveries").upsert(rows, {
+    onConflict: "client_id,platform_video_id",
+    ignoreDuplicates: true,
+  });
 
   if (error) throw new Error(`Failed to save posts: ${error.message}`);
 }
@@ -358,9 +389,10 @@ async function updateRows(rows) {
 
   const { error } = await supabase
     .from("instagram_discoveries")
-    .upsert(rows, { onConflict: "platform_video_id" });
+    .upsert(rows, { onConflict: "client_id,platform_video_id" });
 
-  if (error) throw new Error(`Failed to update rescored posts: ${error.message}`);
+  if (error)
+    throw new Error(`Failed to update rescored posts: ${error.message}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -382,7 +414,8 @@ function mapCarouselSlides(posts) {
 
   for (const post of posts) {
     (post.childPosts ?? []).forEach((child, index) => {
-      if (child.id) parents.set(String(child.id), { parent: post, slide: index + 1 });
+      if (child.id)
+        parents.set(String(child.id), { parent: post, slide: index + 1 });
     });
   }
 
@@ -395,7 +428,9 @@ async function processItems(search, cutoff, items, seenThisRun, libraryUrls) {
   const carouselSlides = mapCarouselSlides(posts);
 
   for (const item of errors) {
-    console.log(`Scraper error: ${item.errorDescription ?? item.error ?? JSON.stringify(item)}`);
+    console.log(
+      `Scraper error: ${item.errorDescription ?? item.error ?? JSON.stringify(item)}`,
+    );
   }
 
   const olderThanCutoff = cutoff
@@ -407,7 +442,11 @@ async function processItems(search, cutoff, items, seenThisRun, libraryUrls) {
     : await getAlreadySeen(
         posts.flatMap((item) => [
           item.shortCode,
-          ...(rescore ? videoSlides(item).map(({ slide }) => slideId(item.shortCode, slide)) : []),
+          ...(rescore
+            ? videoSlides(item).map(({ slide }) =>
+                slideId(item.shortCode, slide),
+              )
+            : []),
         ]),
       );
 
@@ -416,9 +455,13 @@ async function processItems(search, cutoff, items, seenThisRun, libraryUrls) {
   let repeats = 0;
 
   for (const item of posts) {
-    const canRescore = rescore && RESCORABLE.has(alreadySeen.get(item.shortCode));
+    const canRescore =
+      rescore && RESCORABLE.has(alreadySeen.get(item.shortCode));
 
-    if (seenThisRun.has(item.shortCode) || (alreadySeen.has(item.shortCode) && !canRescore)) {
+    if (
+      seenThisRun.has(item.shortCode) ||
+      (alreadySeen.has(item.shortCode) && !canRescore)
+    ) {
       repeats++;
       continue;
     }
@@ -426,7 +469,9 @@ async function processItems(search, cutoff, items, seenThisRun, libraryUrls) {
     seenThisRun.add(item.shortCode);
 
     const parentCarousel =
-      item.productType === "carousel_item" ? carouselSlides.get(String(item.id)) : null;
+      item.productType === "carousel_item"
+        ? carouselSlides.get(String(item.id))
+        : null;
 
     const assessment = libraryUrls.has(normaliseInstagramUrl(item.shortCode))
       ? { status: "auto_rejected", reason: "Already in library", score: 0 }
@@ -440,7 +485,8 @@ async function processItems(search, cutoff, items, seenThisRun, libraryUrls) {
 
     if (assessment.status === "pending") {
       console.log(`  KEEP (${assessment.score}) ${describe(item)}`);
-      if (assessment.reasons.length) console.log(`       ${assessment.reasons.join(", ")}`);
+      if (assessment.reasons.length)
+        console.log(`       ${assessment.reasons.join(", ")}`);
     } else {
       console.log(`  SKIP ${describe(item)} — ${assessment.reason}`);
     }
@@ -453,11 +499,20 @@ async function processItems(search, cutoff, items, seenThisRun, libraryUrls) {
       target.push(toRow(item, search, { ...assessment, status: "split" }));
 
       for (const videoSlide of slides) {
-        const existing = alreadySeen.get(slideId(item.shortCode, videoSlide.slide));
+        const existing = alreadySeen.get(
+          slideId(item.shortCode, videoSlide.slide),
+        );
         if (existing && !RESCORABLE.has(existing)) continue;
 
-        const slideAssessment = libraryUrls.has(slideUrl(item.shortCode, videoSlide.slide))
-          ? { status: "auto_rejected", reason: "Already in library", score: 0, reasons: [] }
+        const slideAssessment = libraryUrls.has(
+          slideUrl(item.shortCode, videoSlide.slide),
+        )
+          ? {
+              status: "auto_rejected",
+              reason: "Already in library",
+              score: 0,
+              reasons: [],
+            }
           : assessSlide(assessment, videoSlide.child);
 
         target.push(toSlideRow(item, videoSlide, search, slideAssessment));
@@ -476,11 +531,15 @@ async function processItems(search, cutoff, items, seenThisRun, libraryUrls) {
   const split = rows.filter((row) => row.review_status === "split").length;
 
   console.log(`\nSummary for ${search.label}:`);
-  console.log(`  Returned:        ${posts.length} posts (${errors.length} errors)`);
+  console.log(
+    `  Returned:        ${posts.length} posts (${errors.length} errors)`,
+  );
   if (cutoff) {
     console.log(
       `  Older than cutoff: ${olderThanCutoff}` +
-        (olderThanCutoff > 0 ? " — date filter was NOT applied to this search" : " — date filter worked"),
+        (olderThanCutoff > 0
+          ? " — date filter was NOT applied to this search"
+          : " — date filter worked"),
     );
   }
   console.log(`  Already seen:    ${repeats}`);
@@ -489,8 +548,12 @@ async function processItems(search, cutoff, items, seenThisRun, libraryUrls) {
       `${rows.length - kept - split} auto-rejected, ${split} carousels split into slides)`,
   );
   if (rescore) {
-    const rescoredKept = rescoredRows.filter((row) => row.review_status === "pending").length;
-    console.log(`  Rescored rows:   ${rescoredRows.length} (${rescoredKept} now for review)`);
+    const rescoredKept = rescoredRows.filter(
+      (row) => row.review_status === "pending",
+    ).length;
+    console.log(
+      `  Rescored rows:   ${rescoredRows.length} (${rescoredKept} now for review)`,
+    );
   }
 }
 
@@ -504,6 +567,7 @@ async function getPendingVideoRows() {
     .from("instagram_discoveries")
     .select("id, platform_video_id, parent_short_code, slide_number")
     .eq("review_status", "pending")
+    .eq("client_id", client.id)
     .not("video_url", "is", null);
 
   if (error) throw error;
@@ -515,10 +579,14 @@ async function getPendingVideoRows() {
 async function refreshVideoLinks() {
   const rows = await getPendingVideoRows();
   const shortCodes = [
-    ...new Set(rows.map((row) => row.parent_short_code ?? row.platform_video_id)),
+    ...new Set(
+      rows.map((row) => row.parent_short_code ?? row.platform_video_id),
+    ),
   ];
 
-  console.log(`${rows.length} pending video rows across ${shortCodes.length} posts`);
+  console.log(
+    `${rows.length} pending video rows across ${shortCodes.length} posts`,
+  );
   if (shortCodes.length === 0) return;
 
   const run = await apify.actor(APIFY_ACTOR_ID).call({
@@ -528,7 +596,9 @@ async function refreshVideoLinks() {
   });
   const { items } = await apify.dataset(run.defaultDatasetId).listItems();
   const posts = new Map(
-    items.filter((item) => item.shortCode).map((item) => [item.shortCode, item]),
+    items
+      .filter((item) => item.shortCode)
+      .map((item) => [item.shortCode, item]),
   );
 
   let refreshed = 0;
@@ -548,8 +618,12 @@ async function refreshVideoLinks() {
     if (!dryRun) {
       const { error } = await supabase
         .from("instagram_discoveries")
-        .update({ video_url: media.videoUrl, thumbnail_url: media.displayUrl ?? null })
-        .eq("id", row.id);
+        .update({
+          video_url: media.videoUrl,
+          thumbnail_url: media.displayUrl ?? null,
+        })
+        .eq("id", row.id)
+        .eq("client_id", client.id); // Ensure we only update posts for this client
 
       if (error) throw error;
     }
@@ -559,7 +633,9 @@ async function refreshVideoLinks() {
 
   console.log(`Refreshed ${refreshed} video links`);
   if (missing.length) {
-    console.log(`No video returned for ${missing.length} (deleted or private?): ${missing.join(", ")}`);
+    console.log(
+      `No video returned for ${missing.length} (deleted or private?): ${missing.join(", ")}`,
+    );
   }
 }
 
@@ -577,13 +653,20 @@ async function main() {
   if (replayFile) {
     const saved = JSON.parse(fs.readFileSync(replayFile, "utf8"));
     // Prefer the current config for this search so rule changes (e.g. trusted) apply
-    const search =
-      SEARCHES.find((candidate) => candidate.label === saved.search?.label) ??
+    const search = SEARCHES.find(
+      (candidate) => candidate.label === saved.search?.label,
+    ) ??
       saved.search ?? { label: `replay:${path.basename(replayFile)}` };
     const items = Array.isArray(saved) ? saved : saved.items;
 
     console.log(`\nReplaying ${items.length} items for ${search.label}`);
-    await processItems(search, saved.cutoff ?? null, items, seenThisRun, libraryUrls);
+    await processItems(
+      search,
+      saved.cutoff ?? null,
+      items,
+      seenThisRun,
+      libraryUrls,
+    );
     return;
   }
 
