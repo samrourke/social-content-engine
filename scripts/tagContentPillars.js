@@ -5,11 +5,12 @@
 // down by content type rather than surface stats like duration.
 //
 // Run with:
-//   node scripts/tagContentPillars.js
+//   node scripts/tagContentPillars.js [--client <slug>]   (defaults to circawaves)
 
 import dotenv from "dotenv";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
+import loadClient from "./lib/loadClient.js";
 
 dotenv.config({ path: ".env" });
 
@@ -86,10 +87,15 @@ Base the decision only on the caption text provided.
 }
 
 async function tagContentPillars() {
+  //load the client info based on the --client <bandname> argument in the terminal command.
+  const client = await loadClient(supabase);
+  console.log(`Client: ${client.name}`);
+
   const { data: videos, error } = await supabase
     .from("tiktok_videos")
     .select("platform_video_id, caption")
-    .is("content_pillar", null);
+    .is("content_pillar", null)
+    .eq("client_id", client.id);
 
   if (error) throw new Error(`Failed to fetch videos: ${error.message}`);
 
@@ -112,7 +118,8 @@ async function tagContentPillars() {
           content_pillar: contentPillar,
           updated_at: new Date().toISOString(),
         })
-        .eq("platform_video_id", video.platform_video_id);
+        .eq("platform_video_id", video.platform_video_id)
+        .eq("client_id", client.id);
 
       if (updateError) throw updateError;
 

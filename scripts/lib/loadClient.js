@@ -4,7 +4,7 @@
 
 import { parseArgs } from "node:util";
 
-export async function loadClient(supabase) {
+export default async function loadClient(supabase) {
   //  Read --client from the command line (default + strict: false)
 
   const { values: args } = parseArgs({
