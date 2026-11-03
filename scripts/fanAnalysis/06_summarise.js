@@ -18,7 +18,6 @@
 // Required env vars (already in .env):
 //   NEXT_PUBLIC_SUPABASE_URL=
 //   SUPABASE_SERVICE_ROLE_KEY=
-//   INSTAGRAM_USERNAME=         optional, defaults to "circawaves" (no @)
 //
 // Requires supabase/migrations/20261030081849_fan_analysis_columns.sql to have been run.
 
@@ -26,11 +25,15 @@ import fs from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import loadClient from "../lib/loadClient.js";
 
 dotenv.config({ path: ".env" });
 
+// TODO (Phase 6): per-client folder.
+// This only holds Circa Waves' data, so don't run with another --client yet.
+
 const FAN_ANALYSIS_DIR = "output/fan-analysis";
-const ARTIST = process.env.INSTAGRAM_USERNAME ?? "circawaves";
+
 const PLATFORM = "instagram";
 
 // Follower-count tiers. Accounts under MIN_NAMED_FOLLOWERS that aren't verified
@@ -40,16 +43,6 @@ const MICRO_MAX_FOLLOWERS = 100000;
 const MID_MAX_FOLLOWERS = 1000000;
 const MICRO_INFLUENCERS_SHOWN = 30;
 
-// The band's own accounts: members, side projects, label, crew. Fans following
-// these says nothing about their wider interests, so they're left out of every
-// share and list. Filtering here (rather than in 04) means a change only needs
-// a free re-run of this script
-const BAND_ACCOUNTS = new Set(
-  [ARTIST, "colindjones", "franciswaves", "harpomilk"].map((username) =>
-    username.toLowerCase(),
-  ),
-);
-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!supabaseUrl || !serviceRoleKey) {
@@ -58,6 +51,25 @@ if (!supabaseUrl || !serviceRoleKey) {
   );
 }
 const supabase = createClient(supabaseUrl, serviceRoleKey);
+const client = await loadClient(supabase);
+
+// The band's own accounts: members, side projects, label, crew. Fans following
+// these says nothing about their wider interests, so they're left out of every
+// share and list. Filtering here (rather than in 04) means a change only needs
+// a free re-run of this script
+const BAND_ACCOUNTS = new Set(
+  [client.instagram_username, ...client.instagram_band_accounts].map(
+    (username) => username.toLowerCase(),
+  ),
+);
+
+const ARTIST = client.instagram_username; // for the fan_analysis table, which is shared by all clients
+
+if (!ARTIST) {
+  throw new Error(
+    "Missing instagram_username for the client in the Supabase clients table.",
+  );
+}
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(path.join(FAN_ANALYSIS_DIR, file), "utf8"));
@@ -317,8 +329,9 @@ async function saveToSupabase(stamp, summary, engagement) {
       accounts_categorised: summary.accountsCategorised,
       engagement,
       summary,
+      client_id: client.id,
     },
-    { onConflict: "artist,platform,source_stamp" },
+    { onConflict: "client_id,platform,source_stamp" },
   );
   if (error) throw new Error(`Failed to save to Supabase: ${error.message}`);
 }
