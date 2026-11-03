@@ -54,6 +54,7 @@ const POST_COUNT = 10;
 // Pinned posts appear first in a profile feed regardless of age, so fetch a few
 // extra and sort by date to find the genuinely recent ones.
 const PINNED_POST_ALLOWANCE = 3;
+
 // Collab posts owned by another account (e.g. a tour announcement posted by the
 // headliner with the band as co-author) show on the band's grid but are seen
 // mostly by the other account's audience, so they're skipped. Fetch extra posts
@@ -104,7 +105,8 @@ async function fetchRecentPosts(username, count) {
     .filter((item) => item.shortCode && item.timestamp)
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-  // Owner is missing on some fallback scrapes; treat those as the band's own
+  //Only use bands posts, not collaborations
+  // Owner is missing on some fallback scrapes so treat those as the band's own
   const isOwnPost = (item) => !item.ownerUsername || item.ownerUsername.toLowerCase() === band;
 
   for (const item of datedPosts.filter((post) => !isOwnPost(post))) {
