@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import loadClient from "./lib/loadClient.js";
 
 dotenv.config({ path: ".env" });
 
@@ -7,6 +8,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
 );
+
+const client = await loadClient(supabase);
 
 const DRY_RUN = false; // Set to true to prevent actual inserts, for testing
 
@@ -17,9 +20,11 @@ const DISCOVERY_SOURCES = [
 ];
 
 async function getExistingUrls() {
+  // Fetch all normalised_source_url values for THIS client from circa_full_content (table name will change later)
   const { data, error } = await supabase
     .from("circa_full_content")
-    .select("normalised_source_url");
+    .select("normalised_source_url")
+    .eq("client_id", client.id);
 
   if (error) {
     throw error;
@@ -32,10 +37,12 @@ async function getApprovedDiscoveries() {
   const discoveries = [];
 
   for (const { table, platform } of DISCOVERY_SOURCES) {
+    // Fetch approved discoveries that haven't been imported yet, ONLY for this client
     const { data, error } = await supabase
       .from(table)
       .select("*")
       .eq("review_status", "approved")
+      .eq("client_id", client.id)
       .is("imported_at", null);
 
     if (error) {
@@ -81,6 +88,7 @@ function discoveryToFullContent(discovery) {
     processing_status: "pending",
 
     updated_at: new Date().toISOString(),
+    client_id: client.id, // Associate the discovery with the current client
   };
 }
 
@@ -174,7 +182,8 @@ async function importDiscoveries() {
       .update({
         imported_at: importedAt,
       })
-      .in("id", importedDiscoveryIds);
+      .in("id", importedDiscoveryIds)
+      .eq("client_id", client.id); // Ensure we only mark discoveries for this client
 
     if (markImportedError) {
       throw markImportedError;
