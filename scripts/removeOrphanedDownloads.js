@@ -2,7 +2,8 @@ import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import fs from "fs/promises";
 import path from "path";
-import { VIDEO_DIRECTORIES } from "@/config/archiveCategories";
+import { VIDEO_DIRECTORIES } from "../config/archiveCategories.js";
+import loadClient from "./lib/loadClient.js";
 
 dotenv.config({ path: ".env" });
 
@@ -10,7 +11,7 @@ const TABLE_NAME = "circa_full_content";
 
 const QUARANTINE_DIRECTORY = "output/orphaned-duplicates";
 
-const DRY_RUN = false; // Set to true to simulate the cleanup without moving files
+const DRY_RUN = true; // Set to true to simulate the cleanup without moving files
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -22,12 +23,22 @@ if (!supabaseUrl || !serviceRoleKey) {
 }
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
+const client = await loadClient(supabase);
 
 const UUID_PATTERN =
   /([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?=\.[^.]+$)/i;
 
+//get video ids from the circa_full_content (name will change)
+//table that match the client id and return a set of ids to compare against the downloaded files
+
+// WARNING: only this client's IDs are loaded, but the archive folders are
+// shared. Until downloads go into per-client folders, running this
+// with a second client's files on disk would move them to quarantine.
 async function getCurrentDatabaseIds() {
-  const { data, error } = await supabase.from(TABLE_NAME).select("id");
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .select("id")
+    .eq("client_id", client.id);
 
   if (error) {
     throw new Error(`Failed to retrieve database IDs: ${error.message}`);
@@ -35,6 +46,8 @@ async function getCurrentDatabaseIds() {
 
   return new Set(data.map((row) => row.id.toLowerCase()));
 }
+
+// Recursively walk through the specified directories and collect all .mp4 files
 
 async function getVideoFiles(directory) {
   const videoFiles = [];

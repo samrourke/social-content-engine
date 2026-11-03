@@ -5,6 +5,7 @@ import path from "path";
 import { execFile } from "child_process";
 import { promisify, parseArgs } from "util";
 import { CATEGORY_DIRECTORIES } from "../config/archiveCategories.js";
+import loadClient from "./lib/loadClient.js";
 
 dotenv.config({ path: ".env" });
 
@@ -17,9 +18,14 @@ const BATCH_SIZE = 100;
 // Optional: node scripts/downloadContent.js --platform instagram
 // downloads only that platform's queue.
 const { values: args } = parseArgs({
-  options: { platform: { type: "string" } },
+  options: {
+    platform: { type: "string" },
+    client: { type: "string", short: "c" },
+  },
 });
 
+//TODO - implement a per client folder structure for downladed content
+//e.g path.join(INPUT_DIR, client.slug, directoryName) instead of path.join(INPUT_DIR, directoryName)
 function getOutputDirectory(source) {
   const category = source.archive_category?.trim().toLowerCase() ?? "other";
 
@@ -38,6 +44,7 @@ if (!supabaseUrl || !serviceRoleKey) {
 }
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
+const client = await loadClient(supabase);
 
 function sanitiseFilename(value) {
   return value
@@ -78,7 +85,8 @@ async function updateSource(id, values) {
       ...values,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("client_id", client.id);
 
   if (error) {
     throw new Error(`Supabase update failed: ${error.message}`);
@@ -101,6 +109,7 @@ async function getPendingSources() {
     )
     .in("download_status", ["pending", "failed"])
     .not("source_url", "is", null)
+    .eq("client_id", client.id)
     .limit(BATCH_SIZE);
 
   if (args.platform) {
@@ -125,7 +134,7 @@ async function getPendingSources() {
  * height limit would cut portrait videos (Shorts are 1080x1920), and YouTube
  * doesn't offer H.264 above 1080p anyway.
  *
- * Instagram's separate video streams are VP9, while its single-file formats
+ * Instagram's separate video streams are VP9, while its single file formats
  * (video + audio together) are H.264 but unlabelled, so prefer the single file.
  */
 const YOUTUBE_FORMAT =
