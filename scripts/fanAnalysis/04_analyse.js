@@ -3,15 +3,7 @@ import path from "path";
 
 export function AnalyseFans() {
   const INSTA_ENGAGEMENT_DIR = "output/fan-analysis";
-
-  const ARTIST_USERNAME = "circawaves";
-
-  const BAND_ACCOUNTS = new Set([
-    "circawaves",
-    "franciswaves",
-    "colindjones",
-    "harpomilk",
-  ]);
+  //TODO: make perclient folder for analysis files
 
   const MIN_FANS = 8; // Set for two for low tests but could be set higher for real world
 
@@ -58,7 +50,7 @@ export function AnalyseFans() {
   for (const fan of usableFans) {
     for (const followed of fan.following) {
       if (fan.error) continue;
-      if (BAND_ACCOUNTS.has(followed.username.toLowerCase())) continue;
+
       countFollow(followed);
     }
   }
@@ -66,6 +58,9 @@ export function AnalyseFans() {
   const shared = Object.values(followedAccounts)
     .filter((account) => account.fans >= MIN_FANS)
     .sort((a, b) => b.fans - a.fans);
+
+  // Band accounts are kept here and filtered in 06_summarise.js, using
+  // clients.instagram_band_accounts, so the list lives in one place.
 
   //Filter out unusable fans that returned error;
 
