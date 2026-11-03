@@ -25,13 +25,15 @@ TikTok to be added later,
 //
 // Required env vars (add to .env):
 //   APIFY_API_TOKEN=            (already in .env)
-//   INSTAGRAM_USERNAME=         optional, defaults to "circawaves" (no @)
+//   bandUsername=         optional, defaults to "circawaves" (no @)
 
 import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import dotenv from "dotenv";
 import { ApifyClient } from "apify-client";
+import { createClient } from "@supabase/supabase-js";
+import loadClient from "../lib/loadClient.js";
 
 dotenv.config({ path: ".env" });
 
@@ -39,7 +41,16 @@ const POSTS_ACTOR_ID = "apify/instagram-scraper";
 const LIKES_ACTOR_ID = "iron-crawler/instagram-likes";
 const COMMENTS_ACTOR_ID = "apify/instagram-comment-scraper";
 
+//TODO: make per-client folder for analysis files!
 const OUTPUT_DIR = "output/fan-analysis";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!supabaseUrl || !serviceRoleKey)
+  throw new Error("Missing Supabase credentials.");
+
+const supabase = createClient(supabaseUrl, serviceRoleKey);
+const client = await loadClient(supabase);
 
 console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
 console.log(
@@ -65,13 +76,19 @@ const MAX_LIKERS_PER_POST = 1000; // caps the cost of each likes run
 const MAX_COMMENTS_PER_POST = 50; // caps the cost of each comments run
 
 const { values: args } = parseArgs({
-  options: { fresh: { type: "boolean", default: false } },
+  options: {
+    fresh: { type: "boolean", default: false },
+    client: { type: "string", short: "c" },
+  },
 });
 
 const apifyToken = process.env.APIFY_API_TOKEN;
-const bandUsername = process.env.INSTAGRAM_USERNAME ?? "circawaves";
 
 if (!apifyToken) throw new Error("Missing APIFY_API_TOKEN.");
+
+const bandUsername = client.instagram_username;
+if (!bandUsername)
+  throw new Error(`No instagram_username set for client "${client.slug}".`);
 
 const apify = new ApifyClient({ token: apifyToken });
 
@@ -107,7 +124,8 @@ async function fetchRecentPosts(username, count) {
 
   //Only use bands posts, not collaborations
   // Owner is missing on some fallback scrapes so treat those as the band's own
-  const isOwnPost = (item) => !item.ownerUsername || item.ownerUsername.toLowerCase() === band;
+  const isOwnPost = (item) =>
+    !item.ownerUsername || item.ownerUsername.toLowerCase() === band;
 
   for (const item of datedPosts.filter((post) => !isOwnPost(post))) {
     console.log(
