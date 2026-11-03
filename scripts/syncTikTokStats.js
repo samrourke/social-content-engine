@@ -4,17 +4,17 @@
 // upserts them into Supabase (tiktok_profile_snapshots, tiktok_videos).
 //
 // Run with:
-//   node scripts/syncTikTokStats.js
+//   node scripts/syncTikTokStats.js [--client <slug>]   (defaults to circawaves)
 //
 // Required env vars (add to .env):
 //   APIFY_API_TOKEN=
-//   TIKTOK_USERNAME=            e.g. "circawaves" (no @)
 //   NEXT_PUBLIC_SUPABASE_URL=   (already in your .env)
 //   SUPABASE_SERVICE_ROLE_KEY=  (already in your .env)
 
 import dotenv from "dotenv";
 import { ApifyClient } from "apify-client";
 import { createClient } from "@supabase/supabase-js";
+import loadClient from "./lib/loadClient.js";
 
 dotenv.config({ path: ".env" });
 
@@ -22,12 +22,16 @@ const APIFY_ACTOR_ID = "clockworks/tiktok-scraper";
 const RESULTS_PER_PAGE = 100; // how many recent videos to pull per run
 
 const apifyToken = process.env.APIFY_API_TOKEN;
-const tikTokUsername = process.env.TIKTOK_USERNAME;
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const apify = new ApifyClient({ token: apifyToken });
 const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+const client = await loadClient(supabase);
+console.log(`Client: ${client.name}`);
+const tikTokUsername = client.tiktok_username; // e.g. pulled from supabase client table "circawavesofficial"
 
 const { error: dbCheck } = await supabase
   .from("tiktok_videos")
@@ -43,9 +47,13 @@ console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
 console.log("");
 console.log("");
 
-if (!apifyToken || !tikTokUsername || !supabaseUrl || !serviceRoleKey) {
+if (!apifyToken || !supabaseUrl || !serviceRoleKey) {
+  throw new Error("Missing APIFY_API_TOKEN or Supabase credentials.");
+}
+
+if (!tikTokUsername) {
   throw new Error(
-    "Missing APIFY_API_TOKEN, TIKTOK_USERNAME, or Supabase credentials.",
+    "Missing tiktok_username for the client in the Supabase clients table.",
   );
 }
 
@@ -74,6 +82,7 @@ function extractProfileSnapshot(items) {
     following_count: author.following ?? null,
     likes_total: author.heart ?? null,
     video_count: author.video ?? null,
+    client_id: client.id,
   };
 }
 
@@ -98,6 +107,7 @@ function extractVideoRows(items) {
       video_url: item.webVideoUrl ?? null,
       last_scraped_at: now,
       updated_at: now,
+      client_id: client.id,
     }));
 }
 
@@ -131,7 +141,8 @@ async function upsertVideoRows(rows) {
   const { data: existing, error: fetchError } = await supabase
     .from("tiktok_videos")
     .select("platform_video_id")
-    .in("platform_video_id", ids);
+    .in("platform_video_id", ids)
+    .eq("client_id", client.id);
 
   if (fetchError)
     throw new Error(`Failed to check existing videos: ${fetchError.message}`);
@@ -161,7 +172,7 @@ async function upsertVideoRows(rows) {
   if (existingRows.length > 0) {
     const { error: upsertError } = await supabase
       .from("tiktok_videos")
-      .upsert(existingRows, { onConflict: "platform_video_id" });
+      .upsert(existingRows, { onConflict: "client_id,platform_video_id" });
 
     if (upsertError)
       throw new Error(`Failed to update videos: ${upsertError.message}`);
