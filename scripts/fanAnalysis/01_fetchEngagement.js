@@ -25,7 +25,6 @@ TikTok to be added later,
 //
 // Required env vars (add to .env):
 //   APIFY_API_TOKEN=            (already in .env)
-//   bandUsername=         optional, defaults to "circawaves" (no @)
 
 import fs from "node:fs";
 import path from "node:path";
@@ -54,7 +53,7 @@ const client = await loadClient(supabase);
 
 console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
 console.log(
-  `Fetching Instagram engagement data for @${process.env.INSTAGRAM_USERNAME ?? "circawaves"}...`,
+  `Fetching Instagram engagement data for @${client.instagram_username}...`,
 );
 console.log("Today's Date: " + new Date().toString());
 console.log("<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>");
