@@ -50,6 +50,11 @@ export default function MobileNav() {
     setIsOpen(false);
   }
 
+  // no nav on the login, error and set-password pages
+  if (pathname.startsWith("/auth") || pathname.startsWith("/account")) {
+    return null;
+  }
+
   return (
     <div className={styles.mobileNav}>
       <div className={styles.navBar}>
