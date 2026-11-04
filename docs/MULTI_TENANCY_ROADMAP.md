@@ -39,7 +39,7 @@ The discovery and download pipeline (YouTube and Instagram search, review, archi
 ```text
                     ┌──────────────────────────────────────────────┐
   Browser ─────────▶│ proxy.ts: refresh the Supabase session,      │
-                    │ send logged-out users to /login               │
+                    │ send logged-out users to /auth/login          │
                     └──────────────────┬───────────────────────────┘
                                        ▼
       /[client]/…  (layout looks up the slug and checks membership)       /admin/…  (platform admins only)
@@ -83,8 +83,8 @@ The baseline includes an `ensure_rls` event trigger (function `rls_auto_enable`)
 
 1. **Stage 1, additive (safe on the live database):**
    - [x] `20261103115946_create_clients.sql`: `clients` table with Circa Waves (slug `circawaves`)
-   - [ ] `20261103122412_add_client_id.sql`: `default_client_id()` function, plus a nullable `client_id` with that default and an index on the 7 kept tables
-   - [ ] `20261103125109_drop_unused_tables.sql`: drop `content_sources` and `yt_content` (CSV copies in `backups/2026-11-03/`)
+   - [x] `20261103122412_add_client_id.sql`: `default_client_id()` function, plus a nullable `client_id` with that default and an index on the 7 kept tables
+   - [x] `20261103125109_drop_unused_tables.sql`: drop `content_sources` and `yt_content` (CSV copies in `backups/2026-11-03/`)
 2. **Stage 2, code:** the scripts set `client_id` themselves and use the new `onConflict` columns (Phase 6, brought forward).
 3. **Stage 3, tighten:** drop the defaults and `default_client_id()`, set `client_id not null`, and swap in the per-client unique constraints below. Decide whether `fan_analysis.artist` is replaced by `client_id`.
 
@@ -133,30 +133,44 @@ alter table tiktok_videos alter column client_id set not null;
 create index on tiktok_videos (client_id);
 ```
 
-- [ ] Make global unique constraints unique per client, so two clients can track the same video:
+- [x] Make global unique constraints unique per client, so two clients can track the same video:
   ```sql
   alter table tiktok_videos drop constraint tiktok_videos_platform_video_id_key;
   alter table tiktok_videos add unique (client_id, platform_video_id);
   ```
   Do the same for `instagram_discoveries` (`instagram_discoveries_platform_video_id_key`) and for both uniques on `content_discoveries`: `content_discoveries_platform_platform_video_id_key` becomes `unique (client_id, platform, platform_video_id)`, and `content_discoveries_source_url_key` becomes `unique (client_id, source_url)`. Constraint names are taken from the 27 October 2026 schema dump.
-- [ ] Update every `upsert(..., { onConflict: "platform_video_id" })` in `scripts/` to `onConflict: "client_id,platform_video_id"`.
-- [ ] Add your own user to `platform_admins` once you have an account (Phase 2).
+- [x] Update every `upsert(..., { onConflict: "platform_video_id" })` in `scripts/` to `onConflict: "client_id,platform_video_id"`.
+- [x] Add your own user to `platform_admins` once you have an account (done in Phase 2).
 
 **Done when:** every row belongs to Circa Waves through `client_id` and nothing visible has changed.
 
-### Phase 2: Real logins with Supabase Auth (1–2 days)
+### Phase 2: Real logins with Supabase Auth (done 4 November 2026)
 
-- [ ] `npm install @supabase/ssr`
-- [ ] Create `lib/supabase/server.js`: a `createServerClient` that reads and writes cookies via `next/headers`, used in server components and actions.
-- [ ] Create `lib/supabase/browser.js`: a `createBrowserClient`, only needed if a client component calls Supabase directly.
+- [x] `npm install @supabase/ssr`
+- [x] `lib/supabase/server.ts` and `lib/supabase/client.ts` (the browser client), both using the publishable key, so RLS applies.
+- [x] `lib/supabase/proxy.ts` (`updateSession`) and `proxy.ts`: Basic Auth replaced by the Supabase session refresh. It uses `getClaims()`, which verifies the JWT locally with the project's ECC (P-256) signing key, and redirects logged-out users to `/auth/login`. Everything under `/auth/*` stays open.
+- [x] Email + password for invited users only (chosen over magic links):
+  - `app/auth/login` with `components/LoginForm.jsx`
+  - `app/auth/confirm/route.ts`: swaps the email's `token_hash` for a session with `verifyOtp()`
+  - `app/auth/error` for invalid or expired links
+  - `app/account/set-password` with `components/SetPasswordForm.jsx`, used after both invites and resets
+  - `app/auth/forgot-password` with `components/PasswordReset.jsx`, which always shows the same message so it never reveals whether an email has an account
+  - A sign-out button in `MobileNav`. The nav is hidden on `/auth/*` and `/account/*`.
+- [x] `20261104131718_create_memberships.sql`: `memberships` (`user_id`, `client_id`, `role` as text `'viewer'`/`'editor'`, primary key `(user_id, client_id)`) and `platform_admins`. Rows are added by hand (SQL Editor) until Phase 8, never in a migration.
+- [x] Dashboard: public sign-ups turned off. Custom SMTP through Resend's test sender (`onboarding@resend.dev`), which only delivers to your own Resend account email, and to spam. The Invite user and Reset password templates link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite|recovery&next=/account/set-password`.
 - [ ] Rename `lib/supabaseAdmin.js` → `lib/supabase/admin.js` and add `import "server-only"` at the top (the package is already installed), so the service key can never be bundled into the browser.
-- [ ] Build `app/login/page.jsx`: email + password, or magic link. Magic links are easiest for clients, with no passwords to manage.
-- [ ] Add `app/auth/callback/route.js` for magic-link and invite redirects.
-- [ ] Rewrite `proxy.ts`: replace the Basic Auth check with the Supabase session-refresh pattern from the `@supabase/ssr` Next.js guide, and redirect to `/login` when there's no user (leave `/login` and `/auth/*` open).
-- [ ] In the Supabase dashboard: **turn off public sign-ups** (Authentication → Providers → Email) so the only way in is an invite.
-- [ ] Remove `SITE_USER` and `SITE_PASSWORD` from `.env` and from the hosting provider once logins work.
+- [ ] Remove `SITE_USER` and `SITE_PASSWORD` from `.env` and from Vercel. No code reads them any more.
 
-**Done when:** you log in as yourself and the existing pages still work. They still use the admin client at this point, which is fine for now.
+**Before merging this branch to main:**
+
+- [ ] Supabase → Authentication → URL Configuration: set the Site URL back from `http://localhost:3000` to the Vercel domain, and add the Vercel URLs to Redirect URLs (keep `http://localhost:3000/**` for development).
+- [ ] Vercel: add `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (doesn't need to be sensitive) for Production, Preview and Development, then redeploy. `NEXT_PUBLIC_` values are copied in at build time.
+- [ ] Vercel: check `SUPABASE_SERVICE_ROLE_KEY` is marked sensitive and is the `sb_secret_` key.
+- [ ] Remember that until Phase 3 every logged-in user can see everything (pages still use `supabaseAdmin`), so invite nobody but yourself.
+
+**Before inviting real clients:** buy a domain, verify it in Resend (SPF, DKIM, DMARC records), and change the sender to an address on that domain.
+
+**Later:** once Vercel uses only `sb_` keys, revoke the old HS256 JWT secret (Project Settings → JWT Keys).
 
 ### Phase 3: Row Level Security (1 day)
 
@@ -178,7 +192,7 @@ create function can_edit(cid uuid) returns boolean
 language sql stable security definer set search_path = public as $$
   select is_platform_admin()
       or exists (select 1 from memberships
-                 where user_id = auth.uid() and client_id = cid and role = 'client_editor');
+                 where user_id = auth.uid() and client_id = cid and role = 'editor');
 $$;
 ```
 
@@ -242,15 +256,15 @@ app/
 
 - [ ] Change `getCalendarRows`, `appendCalendarPost` and `insertCalendarRow` in `lib/calendarSheet.js` to take `{ sheetId, tab }` instead of reading `CALENDAR_SHEET_ID` / `CALENDAR_SHEET_TAB`.
 - [ ] Look up the values from `clients.calendar_sheet_id` / `calendar_sheet_tab` after `requireClient()`.
-- [ ] In `calendar/actions.js`, check that the user is a `client_editor` (or admin) **before** validating and writing. Read-only clients get the calendar without the Add button.
+- [ ] In `calendar/actions.js`, check that the user is an `editor` (or admin) **before** validating and writing. Read-only clients get the calendar without the Add button.
 - [ ] Share each client's sheet with the service account email.
 
 **Long term (recommended once you have 3+ clients):** move the calendar into a `calendar_posts` table with `client_id`, RLS (`select` for members, `insert/update/delete` with `can_edit`), and the existing `FIELD_LIMITS` mirrored as `check` constraints. You get real permissions, an audit trail and no Google API quotas. Keep an "Export to Sheet/CSV" button if clients like spreadsheets.
 
 ### Phase 6: Pipeline scripts take a client (1–2 days)
 
-- [ ] Add a small `scripts/lib/loadClient.js`: read `--client <slug>` from `process.argv`, fetch the `clients` row with the service-role client, and exit with an error if it's missing.
-- [ ] Every insert or upsert in `scripts/` sets `client_id: client.id`. Every select filters `.eq("client_id", client.id)`.
+- [x] Add a small `scripts/lib/loadClient.js`: read `--client <slug>` from `process.argv`, fetch the `clients` row with the service-role client, and exit with an error if it's missing.
+- [x] Every insert or upsert in `scripts/` sets `client_id: client.id`. Every select filters `.eq("client_id", client.id)`.
 - [ ] Move band-specific values into `clients.search_config`:
   - Search terms and title-scoring keywords in `scripts/internetSearch.js`
   - `BAND_PATTERN`, `BAND_HANDLE` and the song lists in `lib/instagramScoring.js`
@@ -269,9 +283,9 @@ app/
 ### Phase 8: Onboarding and invites (1 day)
 
 - [ ] `app/admin/clients/page.jsx`: list clients and a "New client" form (name, slug, handles, sheet ID).
-- [ ] An "Invite user" server action: `supabaseAdmin.auth.admin.inviteUserByEmail(email, { redirectTo: …/auth/callback })`, then insert into `memberships` with the chosen role.
+- [ ] An "Invite user" server action: `supabaseAdmin.auth.admin.inviteUserByEmail(email, { redirectTo: …/auth/confirm })`, then insert into `memberships` with the chosen role.
 - [ ] A remove-access button that deletes the membership row (access ends on the next request).
-- [ ] Optional: let `client_editor`s invite viewers to their own client.
+- [ ] Optional: let `editor`s invite viewers to their own client.
 
 ### Phase 9 (optional): Subdomains
 
@@ -305,8 +319,8 @@ Run this checklist after Phase 4 and again after any data-access change.
   - [ ] `POST /api/admin/discoveries/review` → 401/403
 - [ ] In the browser console, with the anon key and that user's session:
   `supabase.from("tiktok_videos").select("client_id")` → only `test-band` IDs.
-- [ ] A `client_viewer` can't add calendar posts, either through the UI or by posting to the action directly.
-- [ ] Logged out: every route except `/login` redirects.
+- [ ] A `viewer` can't add calendar posts, either through the UI or by posting to the action directly.
+- [ ] Logged out: every route except `/auth/*` redirects to `/auth/login`.
 - [ ] Search the code to confirm the service key is server-only: `grep -rn supabaseAdmin app components`. It should only appear under `app/admin` and `app/api/admin`.
 
 ---
