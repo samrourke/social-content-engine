@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { supabaseAdmin } from "../lib/supabase/admin";
 import DiscoveryReviewer from "../components/DiscoveryReviewer";
 import styles from "./page.module.css";
 import "./globals.css";

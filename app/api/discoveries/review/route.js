@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
+import { supabaseAdmin } from "../../../../lib/supabase/admin";
 
 export async function POST(request) {
   const { id, status, archiveCategory } = await request.json();
