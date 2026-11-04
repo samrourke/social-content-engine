@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+
+import { createClient } from "@/lib/supabase/client";
 
 import { site } from "@/config/site";
 import styles from "./MobileNav.module.css";
@@ -11,6 +12,8 @@ import styles from "./MobileNav.module.css";
 export default function MobileNav() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const supabase = createClient();
+  const router = useRouter();
 
   /*
    * Prevent the page scrolling underneath the menu.
@@ -48,6 +51,16 @@ export default function MobileNav() {
 
   function closeMenu() {
     setIsOpen(false);
+  }
+
+  async function signOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.log("sign out error: ", error);
+    }
+    setIsOpen(false);
+    router.push("/auth/login");
+    router.refresh();
   }
 
   // no nav on the login, error and set-password pages
@@ -116,7 +129,9 @@ export default function MobileNav() {
               })}
             </ul>
           </nav>
-
+          <button className={styles.signOutButton} onClick={signOut}>
+            Sign Out
+          </button>
           <div className={styles.menuFooter}>
             <span>{site.name}</span>
             <span>© {new Date().getFullYear()}</span>

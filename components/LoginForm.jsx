@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import styles from "./LoginForm.module.css";
+import Link from "next/link";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -65,6 +66,7 @@ export default function LoginForm() {
       <button className={styles.button} type="submit" disabled={isLoading}>
         {isLoading ? "Logging in..." : "Log in"}
       </button>
+      <Link href="/auth/forgot-password">Forgot your password?</Link>
     </form>
   );
 }

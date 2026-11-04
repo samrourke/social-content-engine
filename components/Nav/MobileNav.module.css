@@ -24,16 +24,10 @@
     right: 0;
     left: 0;
     z-index: 1002;
-
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-
-    padding:
-      max(1rem, env(safe-area-inset-top))
-      clamp(1rem, 4vw, 2rem)
-      0;
-
+    padding:clamp(1rem, 4vw, 2rem);
     pointer-events: none;
   }
 
@@ -78,10 +72,10 @@
   }
 
   /* ------------------------------------------------
-     Menu switch
+     Buttons
   ------------------------------------------------ */
 
-  .menuButton {
+  .menuButton, .signOutButton {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -92,8 +86,8 @@
 
     padding: 0.6rem 0.75rem;
 
-    color: var(--background);
-    background:var(--foreground);
+    color: var(--foreground);
+    background:var(--background);
 
     font: inherit;
     font-size: 0.7rem;
@@ -132,6 +126,13 @@
 
     font-size: 1.25rem;
     line-height: 0.7;
+  }
+
+  .signOutButton {
+   position: absolute;
+    bottom: 20px;
+    right:  clamp(1rem, 4vw, 2rem);
+    font-size: 0.7rem;
   }
 
   /* ------------------------------------------------
@@ -308,9 +309,9 @@ font-family: var(--font-display);
       transform: translate(0.2rem, 0.2rem);
     }
 
-    .menuButton:hover {
-      background-color: var(--background);
-      color:var(--foreground);
+    .menuButton:hover, .signOutButton:hover {
+      background-color: var(--color-hunter);
+      color:var(--backgroud);
     }
 
     .menuButtonOpen:hover {
@@ -318,6 +319,10 @@ font-family: var(--font-display);
       color:var(--foreground);
     }
   }
+
+
+
+  
 
   /* ------------------------------------------------
      Footer
