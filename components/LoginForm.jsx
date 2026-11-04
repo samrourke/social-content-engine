@@ -46,6 +46,7 @@ export default function LoginForm() {
           type="email"
           required
           value={email}
+          autoComplete="username"
           onChange={(e) => setEmail(e.target.value)}
         />
       </label>
@@ -56,6 +57,7 @@ export default function LoginForm() {
           className={styles.input}
           type="password"
           required
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
