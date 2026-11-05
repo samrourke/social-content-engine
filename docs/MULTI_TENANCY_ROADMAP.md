@@ -203,9 +203,9 @@ alter table tiktok_videos enable row level security;
 create policy "members read" on tiktok_videos for select using (is_member(client_id));
 ```
 
-- [ ] RLS is already on for the 9 existing tables (as of the 27 October 2026 dump), so this step only applies to new tables (`clients`, `platform_admins`, `memberships`, `calendar_posts`). Keep RLS on for **every** table, including admin-only ones (`content_discoveries`, `instagram_discoveries`, `discovery_search_state`, `circa_full_content`). Give the admin-only tables **no** policies, so only the service role can touch them.
-- [ ] `clients`: members can read their own row (`using (is_member(id))`).
-- [ ] `memberships`: users can read their own rows (`using (user_id = auth.uid())`).
+- [x] RLS is already on for the 9 existing tables (as of the 27 October 2026 dump), so this step only applies to new tables (`clients`, `platform_admins`, `memberships`, `calendar_posts`). Keep RLS on for **every** table, including admin-only ones (`content_discoveries`, `instagram_discoveries`, `discovery_search_state`, `circa_full_content`). Give the admin-only tables **no** policies, so only the service role can touch them.
+- [x] `clients`: members can read their own row (`using (is_member(id))`).
+- [x] `memberships`: users can read their own rows (`using (user_id = auth.uid())`).
 - [ ] Run the Supabase **Security Advisor** (Dashboard → Advisors). It flags tables with RLS turned off.
 
 **Done when:** querying with the anon key and no session returns nothing from any table.
