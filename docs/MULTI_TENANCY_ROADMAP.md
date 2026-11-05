@@ -168,7 +168,7 @@ create index on tiktok_videos (client_id);
 - [ ] Vercel: check `SUPABASE_SERVICE_ROLE_KEY` is marked sensitive and is the `sb_secret_` key.
 - [ ] Remember that until Phase 3 every logged-in user can see everything (pages still use `supabaseAdmin`), so invite nobody but yourself.
 
-**Before inviting real clients:** buy a domain, verify it in Resend (SPF, DKIM, DMARC records), and change the sender to an address on that domain.
+**Domain (done 5 November 2026):** `socialcontentengine.app` from Porkbun, served at `https://www.socialcontentengine.app`. Verified in Resend (SPF, DKIM, DMARC), with `no-reply@socialcontentengine.app` as the sender. Don't redirect the flagged `vercel.app` address to it.
 
 **Later:** once Vercel uses only `sb_` keys, revoke the old HS256 JWT secret (Project Settings → JWT Keys).
 
