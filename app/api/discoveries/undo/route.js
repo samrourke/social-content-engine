@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "../../../../lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { undoYoutubeReview } from "@/lib/youtubeDiscoveries";
 
 export async function POST(request) {
+  const supabase = await createClient();
   const { id } = await request.json();
 
-  const { error } = await supabaseAdmin
-    .from("content_discoveries")
-    .update({
-      review_status: "pending",
-      archive_category: null,
-      reviewed_at: null,
-    })
-    .eq("id", id);
+  const { error } = await undoYoutubeReview(supabase, id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
