@@ -1,16 +1,22 @@
-import { getFanAnalysisData } from "../../lib/fanAnalysis";
-import FanAnalysis from "../../components/FanAnalysis";
-import "../globals.css";
+// import { getFanAnalysisData } from "../../lib/fanAnalysis";
+// import FanAnalysis from "../../components/FanAnalysis";
+// import "../globals.css";
 
-// Always query Supabase per request, never serve build-time data
-export const dynamic = "force-dynamic";
+// // Always query Supabase per request, never serve build-time data
+// export const dynamic = "force-dynamic";
 
-export default async function FanAnalysisPage() {
-  const { engagement, summary } = await getFanAnalysisData();
+// export default async function FanAnalysisPage() {
+//   const { engagement, summary } = await getFanAnalysisData();
 
-  return (
-    <main>
-      <FanAnalysis engagement={engagement} summary={summary} />
-    </main>
-  );
+//   return (
+//     <main>
+//       <FanAnalysis engagement={engagement} summary={summary} />
+//     </main>
+//   );
+// }
+
+import { redirect } from "next/navigation";
+
+export default function OldTiktokPage() {
+  redirect("/circawaves/fans");
 }
