@@ -1,78 +1,32 @@
-// import { supabaseAdmin } from "../lib/supabase/admin";
-// import DiscoveryReviewer from "../components/DiscoveryReviewer";
-// import styles from "./page.module.css";
-// import "./globals.css";
-
-// // Always query Supabase per request, never serve build-time data
-// export const dynamic = "force-dynamic";
-
-// export default async function ContentReviewPage() {
-//   const [
-//     { data: discovery, error },
-//     { count: totalCount },
-//     { count: pendingCount },
-//     { count: approvedCount },
-//     { count: rejectedCount },
-//   ] = await Promise.all([
-//     supabaseAdmin
-//       .from("content_discoveries")
-//       .select("*")
-//       .eq("review_status", "pending")
-//       .order("discovery_score", { ascending: false })
-//       .limit(1)
-//       .maybeSingle(),
-
-//     supabaseAdmin.from("content_discoveries").select("*", {
-//       count: "exact",
-//       head: true,
-//     }),
-
-//     supabaseAdmin
-//       .from("content_discoveries")
-//       .select("*", {
-//         count: "exact",
-//         head: true,
-//       })
-//       .eq("review_status", "pending"),
-
-//     supabaseAdmin
-//       .from("content_discoveries")
-//       .select("*", {
-//         count: "exact",
-//         head: true,
-//       })
-//       .eq("review_status", "approved"),
-
-//     supabaseAdmin
-//       .from("content_discoveries")
-//       .select("*", {
-//         count: "exact",
-//         head: true,
-//       })
-//       .eq("review_status", "rejected"),
-//   ]);
-
-//   if (error) {
-//     return <main>Error loading discovery: {error.message}</main>;
-//   }
-
-//   return (
-//     <main>
-//       <DiscoveryReviewer
-//         initialDiscovery={discovery}
-//         initialCounts={{
-//           total: totalCount ?? 0,
-//           pending: pendingCount ?? 0,
-//           approved: approvedCount ?? 0,
-//           rejected: rejectedCount ?? 0,
-//         }}
-//       />
-//     </main>
-//   );
-// }
-
 import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
+import styles from "./page.module.css";
 
-export default function OldTiktokPage() {
-  redirect("/circawaves/youtube-review");
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const supabase = await createClient();
+
+  const { data: firstClient } = await supabase
+    .from("clients")
+    .select("slug")
+    .order("name")
+    .limit(1)
+    .maybeSingle();
+
+  if (firstClient) {
+    redirect(`/${firstClient.slug}/youtube-review`);
+  }
+
+  return (
+    <div className={styles.main}>
+      <h1>Almost There</h1>
+      <p>Your account is not currently linked to a client page</p>
+      <p>Ask a member of the team to rectify.</p>
+      <Link className={styles.link} href="/auth/login">
+        Back to log in
+      </Link>
+    </div>
+  );
 }
