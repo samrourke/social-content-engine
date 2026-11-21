@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { site } from "@/config/site";
 import styles from "./MobileNav.module.css";
 
-export default function MobileNav() {
+export default function MobileNav({ client, clients = [] }) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const supabase = createClient();
@@ -63,22 +63,42 @@ export default function MobileNav() {
     router.refresh();
   }
 
-  // no nav on the login, error and set-password pages
-  if (pathname.startsWith("/auth") || pathname.startsWith("/account")) {
-    return null;
+  function switchClient(newSlug) {
+    // "/circawaves/calendar" → ["", "circawaves", "calendar"] → "calendar"
+    const rest = pathname.split("/").slice(2).join("/");
+    setIsOpen(false);
+    router.push(`/${newSlug}/${rest}`);
   }
 
   return (
     <div className={styles.mobileNav}>
       <div className={styles.navBar}>
-        <Link href="/" className={styles.brand} onClick={closeMenu}>
-          <img
-            src="/cw-logo.png"
-            alt="Circa Waves"
-            style={{ height: "60px", width: "auto", margin: 0 }}
-          />
+        {clients.length > 1 && (
+          <select
+            value=""
+            onChange={(e) => switchClient(e.target.value)}
+            aria-label="Switch client"
+            className={styles.switchClient}
+          >
+            <option value="" disabled>
+              Switch client
+            </option>
+            {clients
+              .filter((c) => c.slug !== client.slug)
+              .map((c) => (
+                <option key={c.slug} value={c.slug}>
+                  {c.name}
+                </option>
+              ))}
+          </select>
+        )}
+        <Link
+          href={`/${client.slug}/youtube-review`}
+          className={styles.brand}
+          onClick={closeMenu}
+        >
+          <p className={styles.clientName}>{client.name}</p>
         </Link>
-
         <button
           className={`${styles.menuButton} ${
             isOpen ? styles.menuButtonOpen : ""
@@ -106,17 +126,18 @@ export default function MobileNav() {
           <nav className={styles.nav} aria-label="Mobile navigation">
             <ul className={styles.navList}>
               {site.nav.map((link) => {
+                const href = `/${client.slug}/${link.path}`;
                 const isActive = pathname === link.href;
 
                 return (
                   <li
-                    key={link.href}
+                    key={href}
                     className={`${styles.navItem} ${
                       isActive ? styles.active : ""
                     }`}
                   >
                     <Link
-                      href={link.href}
+                      href={href}
                       onClick={closeMenu}
                       aria-current={isActive ? "page" : undefined}
                     >

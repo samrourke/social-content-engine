@@ -37,10 +37,10 @@ export const site = {
   },
 
   nav: [
-    { name: "Youtube Review", href: "/", id: "review" },
-    { name: "Instagram Review", href: "/instagram", id: "instagram" },
-    { name: "TikTok Dashboard", href: "/tiktok", id: "dashboard" },
-    { name: "Calendar", href: "/calendar", id: "calendar" },
-    { name: "Fan Analysis", href: "/fan-analysis", id: "fan-analysis" },
+    { name: "Youtube Review", path: "youtube-review" },
+    { name: "Instagram Review", path: "instagram-review" },
+    { name: "TikTok Dashboard", path: "dashboard" },
+    { name: "Calendar", path: "calendar" },
+    { name: "Fan Analysis", path: "fans" },
   ],
 };
