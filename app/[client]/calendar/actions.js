@@ -10,6 +10,7 @@ import {
   subYears,
   addYears,
 } from "date-fns";
+import { requireClient } from "@/lib/tenant";
 
 //Set Field limits for each post, compare form inputs against these limits before submitting
 
@@ -78,11 +79,14 @@ function validatePost(formData) {
     return { error: "Please choose a date within the next two years." };
   }
 
-  console.log("form post ", post);
   return { post: { ...post, date } };
 }
 
-export async function addPost(previousState, formData) {
+export async function addPost(slug, previousState, formData) {
+  const { client } = await requireClient(slug);
+  const calendarId = client.calendar_sheet_id;
+  const calendarTab = client.calendar_sheet_tab;
+
   // What the user typed, to refill the form if something goes wrong
   const submitted = Object.fromEntries(formData);
 
@@ -94,7 +98,7 @@ export async function addPost(previousState, formData) {
 
   // Unexpected problems: something outside the user's control
   try {
-    await insertCalendarRow(post); // post.date is already a Date
+    await insertCalendarRow(post, calendarId, calendarTab);
   } catch (err) {
     console.error("addPost failed:", err); // full details stay in the server log
     return {
@@ -104,6 +108,6 @@ export async function addPost(previousState, formData) {
     };
   }
 
-  revalidatePath("/calendar");
+  revalidatePath(`/${slug}/calendar`);
   return { status: "success", message: "New post added" };
 }
