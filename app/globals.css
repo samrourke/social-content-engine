@@ -108,6 +108,8 @@ html {
   scroll-behavior: smooth;
 }
 
+
+
 body {
   min-height: 100vh;
 
@@ -122,6 +124,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+main{
+  width:100%;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+}
 img,
 picture,
 video,

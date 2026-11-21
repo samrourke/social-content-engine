@@ -1,7 +1,8 @@
 "use client";
 
 import styles from "./AddEventModal.module.css";
-import { addPost } from "@/app/calendar/actions";
+import { useParams } from "next/navigation";
+import { addPost } from "@/app/[client]/calendar/actions.js";
 import { useRef, useEffect, useActionState } from "react";
 
 // Every 15 minutes through the day: "00:00", "00:15" ... "23:45"
@@ -89,7 +90,16 @@ const formInputFields = [
 
 export default function AddEventModal({ addEvent, onClose }) {
   const dialogRef = useRef(null);
-  const [data, action, isPending] = useActionState(addPost, undefined);
+  const { client: slug } = useParams();
+
+  //addPost form needs page slug (i.e. client name)
+  //to post to the correct calendar. use .bind() and useParams() to get the slug
+  //and feed it to the post action.
+
+  const [data, action, isPending] = useActionState(
+    addPost.bind(null, slug),
+    undefined,
+  );
 
   // Open or close the real <dialog> whenever the selected post changes
   useEffect(() => {

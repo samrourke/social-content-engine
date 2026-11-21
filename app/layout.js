@@ -1,8 +1,4 @@
-import Link from "next/link";
-import styles from "./layout.module.css";
 import "./globals.css";
-import Nav from "../components/Nav/Nav";
-import MobileNav from "../components/Nav/MobileNav";
 import { sans, display } from "./fonts";
 
 export const metadata = {
@@ -20,10 +16,7 @@ export default function RootLayout({ children }) {
       className={`${sans.variable} ${display.variable}`}
       data-scroll-behavior="smooth"
     >
-      <body>
-        <MobileNav />
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

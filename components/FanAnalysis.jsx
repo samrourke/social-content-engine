@@ -8,7 +8,9 @@ function formatPercent(share) {
 }
 
 function formatNumber(value) {
-  return value === null || value === undefined ? "—" : value.toLocaleString("en-GB");
+  return value === null || value === undefined
+    ? "—"
+    : value.toLocaleString("en-GB");
 }
 
 function formatDate(value) {
@@ -60,7 +62,8 @@ function ShareBars({ title, description, rows, limit = 10 }) {
 
 function formatFollowers(value) {
   if (value == null) return "—";
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}m`;
+  if (value >= 1_000_000)
+    return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}m`;
   if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
   return String(value);
 }
@@ -74,7 +77,8 @@ function MicroInfluencers({ accounts }) {
     <section className={styles.panel}>
       <h2 className={styles.panelTitle}>Rising accounts your fans follow</h2>
       <p className={styles.panelDescription}>
-        Accounts with 3k–100k followers, ranked by the share of analysed fans who follow them.
+        Accounts with 3k–100k followers, ranked by the share of analysed fans
+        who follow them.
       </p>
 
       <ol className={styles.risingList}>
@@ -90,7 +94,9 @@ function MicroInfluencers({ accounts }) {
               </a>
               <em>
                 {[
-                  account.category !== "unknown" ? capitalise(account.category) : null,
+                  account.category !== "unknown"
+                    ? capitalise(account.category)
+                    : null,
                   account.subcategory,
                   `${formatFollowers(account.followers)} followers`,
                 ]
@@ -142,10 +148,14 @@ function AccountsByCategory({ accountsByCategory }) {
                       {account.full_name?.trim() || `@${account.username}`}
                     </a>
                     <em>
-                      {[account.subcategory, account.team].filter(Boolean).join(" · ")}
+                      {[account.subcategory, account.team]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </em>
                   </span>
-                  <span className={styles.accountShare}>{formatPercent(account.share)}</span>
+                  <span className={styles.accountShare}>
+                    {formatPercent(account.share)}
+                  </span>
                 </li>
               ))}
             </ol>
@@ -163,8 +173,7 @@ export default function FanAnalysis({ engagement, summary }) {
         <header className={styles.header}>
           <h1 className={styles.title}>Fan analysis</h1>
           <p className={styles.subtitle}>
-            No analysis yet. Run the scripts in scripts/fanAnalysis/ — the last one,
-            06_summarise.js, saves the results here.
+            No Fan Analysis has been collected yet.
           </p>
         </header>
       </div>
@@ -179,8 +188,10 @@ export default function FanAnalysis({ engagement, summary }) {
         <h1 className={styles.title}>Fan analysis</h1>
         {engagement && (
           <p className={styles.subtitle}>
-            Instagram · last {engagement.postCount} posts ({formatDate(engagement.firstPostDate)} –{" "}
-            {formatDate(engagement.lastPostDate)}) · scraped {formatDate(engagement.scrapedAt)}
+            Instagram · last {engagement.postCount} posts (
+            {formatDate(engagement.firstPostDate)} –{" "}
+            {formatDate(engagement.lastPostDate)}) · scraped{" "}
+            {formatDate(engagement.scrapedAt)}
           </p>
         )}
       </header>
@@ -197,7 +208,10 @@ export default function FanAnalysis({ engagement, summary }) {
             <div className={styles.tile}>
               <dt>Repeat fans</dt>
               <dd>{formatNumber(engagement.repeatFans)}</dd>
-              <em>{formatPercent(engagement.repeatFans / engagement.totalFans)} engaged with 2+ posts</em>
+              <em>
+                {formatPercent(engagement.repeatFans / engagement.totalFans)}{" "}
+                engaged with 2+ posts
+              </em>
             </div>
             <div className={styles.tile}>
               <dt>Superfans</dt>
@@ -206,8 +220,13 @@ export default function FanAnalysis({ engagement, summary }) {
             </div>
             <div className={styles.tile}>
               <dt>Private accounts</dt>
-              <dd>{formatPercent(engagement.privateFans / engagement.totalFans)}</dd>
-              <em>{formatNumber(engagement.privateFans)} fans can&apos;t be profiled</em>
+              <dd>
+                {formatPercent(engagement.privateFans / engagement.totalFans)}
+              </dd>
+              <em>
+                {formatNumber(engagement.privateFans)} fans can&apos;t be
+                profiled
+              </em>
             </div>
           </dl>
         </section>
@@ -218,15 +237,18 @@ export default function FanAnalysis({ engagement, summary }) {
           <h2 className={styles.sectionHeading}>What engaged fans follow</h2>
           <p className={styles.sectionNote}>
             Based on {formatNumber(summary.fansAnalysed)} public repeat fans
-            {engagement ? ` (of ${formatNumber(engagement.eligibleFans)} eligible)` : ""} and the{" "}
-            {formatNumber(summary.accountsCategorised)} accounts several of them follow. Shares
-            are the percentage of those fans who follow at least one account of each kind.
+            {engagement
+              ? ` (of ${formatNumber(engagement.eligibleFans)} eligible)`
+              : ""}{" "}
+            and the {formatNumber(summary.accountsCategorised)} accounts several
+            of them follow. Shares are the percentage of those fans who follow
+            at least one account of each kind.
           </p>
 
           {smallSample && (
             <p className={styles.warning}>
-              Test sample: only {summary.fansAnalysed} fans analysed, so these percentages
-              aren&apos;t meaningful yet.
+              Test sample: only {summary.fansAnalysed} fans analysed, so these
+              percentages aren&apos;t meaningful yet.
             </p>
           )}
 
@@ -237,7 +259,9 @@ export default function FanAnalysis({ engagement, summary }) {
 
           <div className={styles.stack}>
             <MicroInfluencers accounts={summary.microInfluencers} />
-            <AccountsByCategory accountsByCategory={summary.accountsByCategory} />
+            <AccountsByCategory
+              accountsByCategory={summary.accountsByCategory}
+            />
           </div>
         </section>
       )}

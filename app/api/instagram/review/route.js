@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import {
   getNextInstagramDiscovery,
   reviewInstagramDiscovery,
-} from "../../../../lib/instagramDiscoveries";
+} from "@/lib/instagramDiscoveries";
+import { createClient } from "@/lib/supabase/server";
 
 function isSlideList(value) {
   return (
@@ -20,10 +21,16 @@ export async function POST(request) {
   }
 
   if (carouselSlides != null && !isSlideList(carouselSlides)) {
-    return NextResponse.json({ error: "Invalid carousel slides" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid carousel slides" },
+      { status: 400 },
+    );
   }
 
-  const { error } = await reviewInstagramDiscovery(
+  const supabase = await createClient();
+
+  const { error, clientId } = await reviewInstagramDiscovery(
+    supabase,
     id,
     status,
     archiveCategory,
@@ -35,7 +42,7 @@ export async function POST(request) {
   }
 
   const { data: nextDiscovery, error: nextError } =
-    await getNextInstagramDiscovery();
+    await getNextInstagramDiscovery(supabase, clientId);
 
   if (nextError) {
     return NextResponse.json({ error: nextError.message }, { status: 500 });
