@@ -10,12 +10,6 @@ export default async function CalendarPage({ params }) {
   const { client: slug } = await params;
   const { client, isAdmin } = await requireClient(slug);
 
-  //await the return of Calendar Rows
-  const rows = await getCalendarRows(
-    client.calendar_sheet_id,
-    client.calendar_sheet_tab,
-  );
-
   if (!client.calendar_sheet_id) {
     return (
       <main>
@@ -23,6 +17,12 @@ export default async function CalendarPage({ params }) {
       </main>
     );
   }
+
+  //await the return of Calendar Rows
+  const rows = await getCalendarRows(
+    client.calendar_sheet_id,
+    client.calendar_sheet_tab,
+  );
 
   return (
     <main>

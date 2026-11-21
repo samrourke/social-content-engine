@@ -87,6 +87,13 @@ export async function addPost(slug, previousState, formData) {
   const calendarId = client.calendar_sheet_id;
   const calendarTab = client.calendar_sheet_tab;
 
+  if (!calendarId) {
+    return {
+      status: "error",
+      message: "No calendar has been set up for this client.",
+    };
+  }
+
   // What the user typed, to refill the form if something goes wrong
   const submitted = Object.fromEntries(formData);
 
